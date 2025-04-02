@@ -27,9 +27,10 @@ function HomeScreen() {
       return;
     }
     
+    const searchLower = searchQuery.toLowerCase();
     const filtered = allSymptoms.filter(symptom =>
-      symptom.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (symptom.details && symptom.details.toLowerCase().includes(searchQuery.toLowerCase()))
+      symptom.name.toLowerCase().includes(searchLower) ||
+      (symptom.details && symptom.details.toLowerCase().includes(searchLower))
     );
     setFilteredSymptoms(filtered);
   }, [searchQuery, allSymptoms]);
@@ -100,10 +101,14 @@ function HomeScreen() {
           <Card.Content>
             <Title>Search Results</Title>
             {filteredSymptoms.map(symptom => (
-              <Paragraph key={symptom._id}>
-                {symptom.name} - Severity: {symptom.severity} ({new Date(symptom.timestamp).toLocaleDateString()})
-                {symptom.details && <Paragraph style={styles.details}>Details: {symptom.details}</Paragraph>}
-              </Paragraph>
+              <View key={symptom._id} style={styles.searchResult}>
+                <Title style={styles.symptomName}>{symptom.name}</Title>
+                <Paragraph>Severity: {symptom.severity}/10</Paragraph>
+                <Paragraph>Date: {new Date(symptom.timestamp).toLocaleDateString()}</Paragraph>
+                {symptom.details && (
+                  <Paragraph style={styles.details}>Details: {symptom.details}</Paragraph>
+                )}
+              </View>
             ))}
           </Card.Content>
         </Card>
@@ -121,10 +126,14 @@ function HomeScreen() {
           <Title>Recent Symptoms</Title>
           {recentSymptoms.length > 0 ? (
             recentSymptoms.map(symptom => (
-              <Paragraph key={symptom._id}>
-                {symptom.name} - Severity: {symptom.severity} ({new Date(symptom.timestamp).toLocaleDateString()})
-                {symptom.details && <Paragraph style={styles.details}>Details: {symptom.details}</Paragraph>}
-              </Paragraph>
+              <View key={symptom._id} style={styles.symptomItem}>
+                <Title style={styles.symptomName}>{symptom.name}</Title>
+                <Paragraph>Severity: {symptom.severity}/10</Paragraph>
+                <Paragraph>Date: {new Date(symptom.timestamp).toLocaleDateString()}</Paragraph>
+                {symptom.details && (
+                  <Paragraph style={styles.details}>Details: {symptom.details}</Paragraph>
+                )}
+              </View>
             ))
           ) : (
             <Paragraph>No symptoms recorded yet</Paragraph>
@@ -137,10 +146,12 @@ function HomeScreen() {
           <Title>Your Medications</Title>
           {medications.length > 0 ? (
             medications.map(med => (
-              <Paragraph key={med._id}>
-                {med.name} - {med.dosage}
-                {med.frequency && <Paragraph style={styles.details}>Frequency: {med.frequency}</Paragraph>}
-              </Paragraph>
+              <View key={med._id} style={styles.medicationItem}>
+                <Title style={styles.medicationName}>{med.name}</Title>
+                <Paragraph>Dosage: {med.dosage}</Paragraph>
+                {med.frequency && <Paragraph>Frequency: {med.frequency}</Paragraph>}
+                {med.notes && <Paragraph style={styles.details}>Notes: {med.notes}</Paragraph>}
+              </View>
             ))
           ) : (
             <Paragraph>No medications added yet</Paragraph>
@@ -181,10 +192,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
   },
+  searchResult: {
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  symptomItem: {
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  medicationItem: {
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  symptomName: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  medicationName: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
   details: {
     fontSize: 12,
     color: '#666',
-    marginLeft: 8,
     marginTop: 4,
   },
 });

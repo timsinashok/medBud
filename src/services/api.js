@@ -34,37 +34,64 @@ export const api = {
 
   // Medications
   async createMedication(medicationData) {
-    const response = await fetch(`${BASE_URL}/api/medications/`, {
+    const response = await fetch(`${BASE_URL}/api/medications/?user_id=${medicationData.user_id}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(medicationData),
     });
-    return response.json();
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+    
+    return data;
   },
 
   async getMedications(userId) {
     const response = await fetch(`${BASE_URL}/api/medications/${userId}`);
-    return response.json();
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+    
+    return data;
   },
 
-  async updateMedication(medicationId, medicationData) {
-    const response = await fetch(`${BASE_URL}/api/medications/${medicationId}`, {
+  async updateMedication(medicationId, medicationData, userId) {
+    const response = await fetch(`${BASE_URL}/api/medications/${medicationId}?user_id=${userId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(medicationData),
     });
-    return response.json();
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+    
+    return data;
   },
 
-  async deleteMedication(medicationId) {
-    const response = await fetch(`${BASE_URL}/api/medications/${medicationId}`, {
+  async deleteMedication(medicationId, userId) {
+    const response = await fetch(`${BASE_URL}/api/medications/${medicationId}?user_id=${userId}`, {
       method: 'DELETE',
     });
-    return response.json();
+    
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+    
+    return true;
   },
 
   // Reports
