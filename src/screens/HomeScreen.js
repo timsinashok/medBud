@@ -22,17 +22,30 @@ function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    if (searchQuery.trim() === '') {
+    try {
+      if (!searchQuery || !allSymptoms) {
+        setFilteredSymptoms([]);
+        return;
+      }
+      
+      const searchLower = searchQuery.toLowerCase().trim();
+      if (!searchLower) {
+        setFilteredSymptoms([]);
+        return;
+      }
+
+      const filtered = allSymptoms.filter(symptom => {
+        if (!symptom || typeof symptom !== 'object') return false;
+        const name = symptom.name?.toLowerCase() || '';
+        const details = symptom.details?.toLowerCase() || '';
+        return name.includes(searchLower) || details.includes(searchLower);
+      });
+      
+      setFilteredSymptoms(filtered);
+    } catch (error) {
+      console.error('Error filtering symptoms:', error);
       setFilteredSymptoms([]);
-      return;
     }
-    
-    const searchLower = searchQuery.toLowerCase();
-    const filtered = allSymptoms.filter(symptom =>
-      symptom.name.toLowerCase().includes(searchLower) ||
-      (symptom.details && symptom.details.toLowerCase().includes(searchLower))
-    );
-    setFilteredSymptoms(filtered);
   }, [searchQuery, allSymptoms]);
 
   const loadData = async (refresh = false) => {
@@ -50,9 +63,12 @@ function HomeScreen() {
         api.getMedications(USER_ID)
       ]);
 
-      setAllSymptoms(symptomsData);
+      // Ensure symptomsData is an array
+      const validSymptoms = Array.isArray(symptomsData) ? symptomsData : [];
+      
+      setAllSymptoms(validSymptoms);
       // Sort symptoms by timestamp and get the 5 most recent
-      const sortedSymptoms = [...symptomsData].sort((a, b) => 
+      const sortedSymptoms = [...validSymptoms].sort((a, b) => 
         new Date(b.timestamp) - new Date(a.timestamp)
       );
       setRecentSymptoms(sortedSymptoms.slice(0, 5));
@@ -60,6 +76,9 @@ function HomeScreen() {
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       setError('Failed to load dashboard data. Pull down to refresh.');
+      setAllSymptoms([]);
+      setRecentSymptoms([]);
+      setMedications([]);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -102,9 +121,9 @@ function HomeScreen() {
             <Title>Search Results</Title>
             {filteredSymptoms.map(symptom => (
               <View key={symptom._id} style={styles.searchResult}>
-                <Title style={styles.symptomName}>{symptom.name}</Title>
-                <Paragraph>Severity: {symptom.severity}/10</Paragraph>
-                <Paragraph>Date: {new Date(symptom.timestamp).toLocaleDateString()}</Paragraph>
+                <Title style={styles.symptomName}>{symptom.name || 'Unnamed Symptom'}</Title>
+                <Paragraph>Severity: {symptom.severity || 'N/A'}/10</Paragraph>
+                <Paragraph>Date: {symptom.timestamp ? new Date(symptom.timestamp).toLocaleDateString() : 'N/A'}</Paragraph>
                 {symptom.details && (
                   <Paragraph style={styles.details}>Details: {symptom.details}</Paragraph>
                 )}
@@ -127,9 +146,9 @@ function HomeScreen() {
           {recentSymptoms.length > 0 ? (
             recentSymptoms.map(symptom => (
               <View key={symptom._id} style={styles.symptomItem}>
-                <Title style={styles.symptomName}>{symptom.name}</Title>
-                <Paragraph>Severity: {symptom.severity}/10</Paragraph>
-                <Paragraph>Date: {new Date(symptom.timestamp).toLocaleDateString()}</Paragraph>
+                <Title style={styles.symptomName}>{symptom.name || 'Unnamed Symptom'}</Title>
+                <Paragraph>Severity: {symptom.severity || 'N/A'}/10</Paragraph>
+                <Paragraph>Date: {symptom.timestamp ? new Date(symptom.timestamp).toLocaleDateString() : 'N/A'}</Paragraph>
                 {symptom.details && (
                   <Paragraph style={styles.details}>Details: {symptom.details}</Paragraph>
                 )}
@@ -147,8 +166,8 @@ function HomeScreen() {
           {medications.length > 0 ? (
             medications.map(med => (
               <View key={med._id} style={styles.medicationItem}>
-                <Title style={styles.medicationName}>{med.name}</Title>
-                <Paragraph>Dosage: {med.dosage}</Paragraph>
+                <Title style={styles.medicationName}>{med.name || 'Unnamed Medication'}</Title>
+                <Paragraph>Dosage: {med.dosage || 'N/A'}</Paragraph>
                 {med.frequency && <Paragraph>Frequency: {med.frequency}</Paragraph>}
                 {med.notes && <Paragraph style={styles.details}>Notes: {med.notes}</Paragraph>}
               </View>
