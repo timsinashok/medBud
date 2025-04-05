@@ -1,4 +1,4 @@
-const BASE_URL = 'http://10.228.241.103:8000';
+const BASE_URL = 'https://medbud.onrender.com';
 
 export const api = {
   // Symptoms
@@ -95,14 +95,66 @@ export const api = {
   },
 
   // Reports
-  async generateReport(userId) {
-    const response = await fetch(`${BASE_URL}/api/reports/${userId}`);
-    return response.json();
+  async generateReport(userId, startDate = null, endDate = null, format = 'summary') {
+    let url = `${BASE_URL}/api/reports/${userId}`;
+    
+    // Add query parameters if they exist
+    const params = new URLSearchParams();
+    if (startDate) {
+      params.append('start_date', startDate);
+    }
+    if (endDate) {
+      params.append('end_date', endDate);
+    }
+    // Set report format
+    params.append('report_format', format);
+    
+    // Append parameters to URL if any exist
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+    
+    // If it's a PDF, return the blob, otherwise return the text
+    if (format === 'pdf') {
+      return await response.blob();
+    }
+    return await response.text();
   },
 
-  async generatePdfReport(userId) {
-    const response = await fetch(`${BASE_URL}/api/reports/${userId}/pdf`);
-    return response.json();
+  async generatePdfReport(userId, startDate = null, endDate = null) {
+    let url = `${BASE_URL}/api/reports/${userId}`;
+    
+    // Add date range parameters if provided
+    const params = new URLSearchParams();
+    if (startDate) {
+      params.append('start_date', startDate);
+    }
+    if (endDate) {
+      params.append('end_date', endDate);
+    }
+    
+    // Append parameters to URL if any exist
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+    
+    // The API returns a string with the report content
+    const data = await response.text();
+    return data;
   },
 
   // Users
