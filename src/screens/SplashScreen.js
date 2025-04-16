@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.bold.fontFamily,
     fontWeight: theme.typography.bold.fontWeight,
     fontSize: 36,
-    color: theme.colors.text,
+    color: theme.colors.primary,
     marginBottom: theme.spacing.sm,
   },
   tagline: {
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.roundness,
     elevation: 2,
     marginBottom: theme.spacing.lg,
-    shadowColor: theme.colors.elevation.level2,
+    shadowColor: theme.colors.text,
     shadowOpacity: 0.2,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },

@@ -1,15 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
-import { Card, Title, Paragraph, Searchbar, ActivityIndicator, Snackbar, Button, Text } from 'react-native-paper';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, ScrollView, StyleSheet, RefreshControl, TouchableOpacity, Image } from 'react-native';
+import { 
+  Card, Title, Paragraph, Searchbar, ActivityIndicator, 
+  Snackbar, Button, Text, Chip, Surface, Divider 
+} from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { DatePickerModal } from 'react-native-paper-dates';
 import { api } from '../services/api';
 import { theme } from '../theme/theme';
-import { DatePickerModal } from 'react-native-paper-dates';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 // Temporary user ID - In a real app, this would come from authentication
 const USER_ID = '67ebd559c9003543caba959c';
 
-function HomeScreen() {
+function HomeScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+  
   const [recentSymptoms, setRecentSymptoms] = useState([]);
   const [medications, setMedications] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,7 +40,7 @@ function HomeScreen() {
     loadData();
   }, []);
 
-  const performSearch = () => {
+  const performSearch = useCallback(() => {
     try {
       setSearchPerformed(true);
       setSearchError(null);
@@ -46,6 +53,16 @@ function HomeScreen() {
         setSearchError("Please enter search text or select a date range");
         setFilteredSymptoms([]);
         return;
+      }
+      
+      // Check if search query exceeds maximum keyword limit
+      if (hasSearchQuery) {
+        const keywords = searchQuery.trim().split(/\s+/);
+        if (keywords.length > 20) {
+          setSearchError("Search is limited to a maximum of 20 keywords");
+          setFilteredSymptoms([]);
+          return;
+        }
       }
       
       if (!allSymptoms || !Array.isArray(allSymptoms)) {
@@ -68,7 +85,7 @@ function HomeScreen() {
       setFilteredSymptoms([]);
       setSearchError("An error occurred while searching");
     }
-  };
+  }, [searchQuery, startDate, endDate, allSymptoms]);
 
   const loadData = async (refresh = false) => {
     try {
@@ -100,38 +117,54 @@ function HomeScreen() {
     }
   };
 
-  const onRefresh = () => loadData(true);
+  const onRefresh = useCallback(() => {
+    loadData(true);
+  }, []);
 
-  const onDismissDatePicker = () => setDatePickerVisible(false);
+  const onDismissDatePicker = useCallback(() => {
+    setDatePickerVisible(false);
+  }, []);
 
-  const onConfirmDatePicker = (params) => {
+  const onConfirmDatePicker = useCallback((params) => {
     setDatePickerVisible(false);
     setStartDate(params.startDate);
     setEndDate(params.endDate);
-  };
+  }, []);
 
   const getSeverityColor = (severity) => {
     if (!severity) return theme.colors.disabled;
     const numSeverity = parseInt(severity, 10);
     if (isNaN(numSeverity)) return theme.colors.disabled;
-    if (numSeverity <= 3) return '#4CAF50';
-    if (numSeverity <= 6) return '#FF9800';
-    return '#F44336';
+    
+    if (numSeverity <= 3) return theme.severityColors.low;
+    if (numSeverity <= 6) return theme.severityColors.medium;
+    return theme.severityColors.high;
   };
 
   const formatDate = (date) => date ? date.toLocaleDateString() : 'Not set';
 
+  const resetSearch = useCallback(() => {
+    setSearchQuery('');
+    setStartDate(null);
+    setEndDate(null);
+    setSearchPerformed(false);
+    setFilteredSymptoms([]);
+    setSearchError(null);
+  }, []);
+
   if (isLoading && !isRefreshing && !recentSymptoms.length) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={styles.loadingText}>Loading your health data...</Text>
       </View>
     );
   }
 
   return (
     <ScrollView 
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top }]}
+      contentContainerStyle={styles.contentContainer}
       refreshControl={
         <RefreshControl
           refreshing={isRefreshing}
@@ -140,134 +173,222 @@ function HomeScreen() {
         />
       }
     >
-      <Animated.View entering={FadeInDown.duration(300)} style={styles.searchContainer}>
-        <Searchbar
-          placeholder="Search symptoms..."
-          onChangeText={setSearchQuery}
-          value={searchQuery}
-          style={styles.searchBar}
-          iconColor={theme.colors.primary}
-          accessibilityLabel="Search symptoms"
-        />
-        
-        <View style={styles.dateFilterContainer}>
-          <TouchableOpacity 
-            onPress={() => setDatePickerVisible(true)}
-            style={styles.dateFilterButton}
-            accessibilityLabel="Select date range"
-          >
-            <View style={styles.dateFilterContent}>
-              <Text style={styles.dateFilterLabel}>Date: </Text>
-              <Text style={styles.dateFilterText} numberOfLines={1}>
-                {startDate && endDate ? `${formatDate(startDate)} - ${formatDate(endDate)}` : "Filter by date"}
-              </Text>
-            </View>
-          </TouchableOpacity>
-          
-          {(startDate || endDate) && (
-            <TouchableOpacity 
-              onPress={() => { setStartDate(null); setEndDate(null); }}
-              style={styles.clearDateButton}
-              accessibilityLabel="Clear date filter"
-            >
-              <Text style={styles.clearDateText}>Clear</Text>
-            </TouchableOpacity>
-          )}
+      <Animated.View entering={FadeIn.duration(500)} style={styles.header}>
+        <View style={styles.headerContent}>
+          <Image 
+            source={require('../../assets/logo.png')} 
+            style={styles.headerLogo} 
+            resizeMode="contain"
+          />
+          <View>
+            <Text style={styles.welcomeText}>Welcome to</Text>
+            <Text style={styles.appName}>MEDBUD</Text>
+            <Text style={styles.tagline}>Your health tracking companion</Text>
+          </View>
         </View>
-        
-        <Button 
-          mode="contained" 
-          style={styles.searchButton}
-          onPress={performSearch}
-          contentStyle={styles.buttonContent}
-          labelStyle={styles.buttonLabel}
-          accessibilityLabel="Perform search"
-        >
-          Search
-        </Button>
-        
-        {searchError && <Text style={styles.errorText}>{searchError}</Text>}
+      </Animated.View>
+
+      <Animated.View entering={FadeInDown.duration(500).delay(100)}>
+        <Surface style={styles.searchSurface}>
+          <Text style={styles.searchTitle}>Find Symptoms</Text>
+          <Searchbar
+            placeholder="Search by name or details..."
+            onChangeText={setSearchQuery}
+            value={searchQuery}
+            style={styles.searchBar}
+            iconColor={theme.colors.primary}
+            onSubmitEditing={performSearch}
+            returnKeyType="search"
+          />
+          
+          <View style={styles.dateFilterContainer}>
+            <TouchableOpacity 
+              onPress={() => setDatePickerVisible(true)}
+              style={styles.dateFilterButton}
+            >
+              <Ionicons name="calendar-outline" size={18} color={theme.colors.primary} />
+              <Text style={styles.dateFilterText} numberOfLines={1}>
+                {startDate && endDate 
+                  ? `${formatDate(startDate)} - ${formatDate(endDate)}`
+                  : "Filter by date range"}
+              </Text>
+            </TouchableOpacity>
+            
+            {(startDate || endDate) && (
+              <TouchableOpacity 
+                onPress={() => {
+                  setStartDate(null);
+                  setEndDate(null);
+                }}
+                style={styles.clearDateButton}
+              >
+                <Ionicons name="close-circle" size={18} color={theme.colors.error} />
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          <View style={styles.searchActionContainer}>
+            <Button 
+              mode="contained" 
+              style={styles.searchButton}
+              onPress={performSearch}
+              icon="magnify"
+            >
+              Search
+            </Button>
+            
+            {searchPerformed && (
+              <Button 
+                mode="outlined" 
+                style={styles.resetButton}
+                onPress={resetSearch}
+              >
+                Reset
+              </Button>
+            )}
+          </View>
+          
+          {searchError && (
+            <Text style={styles.errorText}>{searchError}</Text>
+          )}
+        </Surface>
       </Animated.View>
 
       {searchPerformed && (
-        <Animated.View entering={FadeInDown.duration(300).delay(100)} style={styles.card}>
-          <Card style={styles.cardContent}>
+        <Animated.View entering={FadeInDown.duration(500).delay(200)}>
+          <Card style={theme.defaultCardStyle}>
             <Card.Content>
               <View style={styles.searchResultsHeader}>
-                <Title style={styles.cardTitle}>Search Results</Title>
+                <Title style={styles.sectionTitle}>Search Results</Title>
                 {filteredSymptoms.length > 0 && (
-                  <Text style={styles.resultCount}>{filteredSymptoms.length} result{filteredSymptoms.length !== 1 ? 's' : ''}</Text>
+                  <Chip mode="outlined" style={styles.resultCount}>
+                    {filteredSymptoms.length} result{filteredSymptoms.length !== 1 ? 's' : ''}
+                  </Chip>
                 )}
               </View>
+              
               {filteredSymptoms.length > 0 ? (
-                filteredSymptoms.map((symptom, index) => (
-                  <Animated.View key={symptom._id} entering={FadeInDown.duration(300).delay(100 + index * 50)} style={styles.searchResult}>
+                filteredSymptoms.map(symptom => (
+                  <View key={symptom._id} style={styles.searchResult}>
                     <View style={styles.resultHeader}>
                       <Title style={styles.symptomName}>{symptom.name || 'Unnamed Symptom'}</Title>
-                      <View style={[styles.severityPill, { backgroundColor: getSeverityColor(symptom.severity) }]}>
-                        <Text style={styles.severityText}>{symptom.severity || 'N/A'}/10</Text>
+                      <View style={[styles.severityPill, {
+                        backgroundColor: getSeverityColor(symptom.severity)
+                      }]}>
+                        <Text style={styles.severityText}>
+                          {symptom.severity || 'N/A'}/10
+                        </Text>
                       </View>
                     </View>
                     <Paragraph style={styles.dateText}>
                       {symptom.timestamp ? new Date(symptom.timestamp).toLocaleDateString() : 'N/A'}
                     </Paragraph>
-                    {symptom.details && <Paragraph style={styles.details}>{symptom.details}</Paragraph>}
-                  </Animated.View>
+                    {symptom.details && (
+                      <Paragraph style={styles.details}>{symptom.details}</Paragraph>
+                    )}
+                    <Divider style={styles.resultDivider} />
+                  </View>
                 ))
               ) : (
-                <Paragraph style={styles.noDataMessage}>No symptom data found</Paragraph>
+                <View style={styles.emptyStateContainer}>
+                  <Ionicons name="search" size={48} color={theme.colors.disabled} />
+                  <Text style={styles.noDataMessage}>No matching symptoms found</Text>
+                </View>
               )}
             </Card.Content>
           </Card>
         </Animated.View>
       )}
 
-      <Animated.View entering={FadeInDown.duration(300).delay(200)} style={styles.card}>
-        <Card style={styles.cardContent}>
+      <Animated.View entering={FadeInDown.duration(500).delay(300)}>
+        <Card style={theme.defaultCardStyle}>
           <Card.Content>
-            <Title style={styles.cardTitle}>Welcome to MEDBUD</Title>
-            <Paragraph style={styles.cardSubtitle}>Your personal health tracking assistant</Paragraph>
+            <Title style={styles.sectionTitle}>Recent Symptoms</Title>
+            {recentSymptoms.length > 0 ? (
+              recentSymptoms.map((symptom, index) => (
+                <Animated.View 
+                  key={symptom._id} 
+                  entering={FadeInDown.duration(400).delay(100 * index)}
+                  style={styles.symptomItem}
+                >
+                  <View style={styles.resultHeader}>
+                    <Title style={styles.symptomName}>{symptom.name || 'Unnamed Symptom'}</Title>
+                    <View style={[styles.severityPill, {
+                      backgroundColor: getSeverityColor(symptom.severity)
+                    }]}>
+                      <Text style={styles.severityText}>
+                        {symptom.severity || 'N/A'}/10
+                      </Text>
+                    </View>
+                  </View>
+                  <Paragraph style={styles.dateText}>
+                    {symptom.timestamp ? new Date(symptom.timestamp).toLocaleDateString() : 'N/A'}
+                  </Paragraph>
+                  {symptom.details && (
+                    <Paragraph style={styles.details}>{symptom.details}</Paragraph>
+                  )}
+                  {index < recentSymptoms.length - 1 && <Divider style={styles.itemDivider} />}
+                </Animated.View>
+              ))
+            ) : (
+              <View style={styles.emptyStateContainer}>
+                <Ionicons name="medical-outline" size={48} color={theme.colors.disabled} />
+                <Text style={styles.noDataMessage}>No symptoms recorded yet</Text>
+                <Button 
+                  mode="contained" 
+                  onPress={() => navigation.navigate('Symptoms')}
+                  style={styles.emptyStateButton}
+                >
+                  Log a symptom
+                </Button>
+              </View>
+            )}
           </Card.Content>
         </Card>
       </Animated.View>
 
-      <Card style={styles.card}>
-        <Card.Content>
-          <Title>Recent Symptoms</Title>
-          {recentSymptoms.length > 0 ? (
-            recentSymptoms.map(symptom => (
-              <View key={symptom._id} style={styles.symptomItem}>
-                <Title style={styles.symptomName}>{symptom.name || 'Unnamed Symptom'}</Title>
-                <Paragraph>Severity: {symptom.severity || 'N/A'}/10</Paragraph>
-                <Paragraph>Date: {symptom.timestamp ? new Date(symptom.timestamp).toLocaleDateString() : 'N/A'}</Paragraph>
-                {symptom.details && (
-                  <Paragraph style={styles.details}>Details: {symptom.details}</Paragraph>
-                )}
+      <Animated.View entering={FadeInDown.duration(500).delay(400)}>
+        <Card style={theme.defaultCardStyle}>
+          <Card.Content>
+            <Title style={styles.sectionTitle}>Your Medications</Title>
+            {medications.length > 0 ? (
+              medications.map((med, index) => (
+                <Animated.View 
+                  key={med._id} 
+                  entering={FadeInDown.duration(400).delay(100 * index)}
+                  style={styles.medicationItem}
+                >
+                  <Title style={styles.medicationName}>{med.name || 'Unnamed Medication'}</Title>
+                  <View style={styles.medicationDetails}>
+                    <Chip icon="pill" style={styles.medicationChip}>
+                      {med.dosage || 'N/A'}
+                    </Chip>
+                    {med.frequency && (
+                      <Chip icon="repeat" style={styles.medicationChip}>
+                        {med.frequency}
+                      </Chip>
+                    )}
+                  </View>
+                  {med.notes && <Paragraph style={styles.details}>Notes: {med.notes}</Paragraph>}
+                  {index < medications.length - 1 && <Divider style={styles.itemDivider} />}
+                </Animated.View>
+              ))
+            ) : (
+              <View style={styles.emptyStateContainer}>
+                <Ionicons name="medkit-outline" size={48} color={theme.colors.disabled} />
+                <Text style={styles.noDataMessage}>No medications added yet</Text>
+                <Button 
+                  mode="contained" 
+                  onPress={() => navigation.navigate('Medications')}
+                  style={styles.emptyStateButton}
+                >
+                  Add medication
+                </Button>
               </View>
-            ))
-          ) : (
-            <Paragraph>No symptoms recorded yet</Paragraph>
-          )}
-        </Card.Content>
-      </Card>
-
-      <Card style={styles.card}>
-        <Card.Content>
-          <Title>Your Medications</Title>
-          {medications.length > 0 ? (
-            medications.map(med => (
-              <View key={med._id} style={styles.medicationItem}>
-                <Title style={styles.medicationName}>{med.name || 'Unnamed Medication'}</Title>
-                <Paragraph>Dosage: {med.dosage || 'N/A'}</Paragraph>
-                {med.frequency && <Paragraph>Frequency: {med.frequency}</Paragraph>}
-                {med.notes && <Paragraph style={styles.details}>Notes: {med.notes}</Paragraph>}
-              </View>
-            ))
-          ) : (
-            <Paragraph>No medications added yet</Paragraph>
-          )}
-        </Card.Content>
-      </Card>
+            )}
+          </Card.Content>
+        </Card>
+      </Animated.View>
 
       <Snackbar
         visible={!!error}
@@ -287,21 +408,57 @@ function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#f5f5f5',
   },
-  searchContainer: {
+  contentContainer: {
+    padding: theme.spacing.md,
+  },
+  header: {
     marginBottom: theme.spacing.md,
   },
-  searchBar: {
-    borderRadius: theme.roundness,
-    elevation: 2,
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: theme.colors.surface,
+    borderRadius: theme.roundness,
+    padding: theme.spacing.md,
+    ...theme.shadows.medium,
+  },
+  headerLogo: {
+    width: 60,
+    height: 60,
+    marginRight: theme.spacing.md,
+  },
+  welcomeText: {
+    ...theme.typography.medium,
+    color: theme.colors.disabled,
+  },
+  appName: {
+    ...theme.typography.h1,
+    color: theme.colors.primary,
+    letterSpacing: 1,
+  },
+  tagline: {
+    ...theme.typography.body2,
+    color: theme.colors.disabled,
+  },
+  searchSurface: {
+    padding: theme.spacing.md,
+    borderRadius: theme.roundness,
+    marginBottom: theme.spacing.md,
+    ...theme.shadows.small,
+  },
+  searchTitle: {
+    ...theme.typography.h3,
     marginBottom: theme.spacing.sm,
-    shadowColor: theme.colors.elevation.level2,
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    color: theme.colors.text,
+  },
+  searchBar: {
+    marginBottom: theme.spacing.sm,
+    backgroundColor: theme.colors.background,
+    elevation: 0,
+    borderWidth: 1,
+    borderColor: theme.colors.divider,
   },
   dateFilterContainer: {
     flexDirection: 'row',
@@ -309,267 +466,148 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   dateFilterButton: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.roundness,
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.roundness / 2,
     padding: theme.spacing.sm,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: theme.colors.divider,
     flex: 1,
-    shadowColor: theme.colors.elevation.level2,
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  dateFilterContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  dateFilterLabel: {
-    fontFamily: theme.typography.medium.fontFamily,
-    fontWeight: theme.typography.medium.fontWeight,
-    fontSize: theme.typography.caption.fontSize,
-    marginRight: theme.spacing.xs,
-    color: theme.colors.primary,
-  },
   dateFilterText: {
-    flex: 1,
-    fontFamily: theme.typography.regular.fontFamily,
-    fontSize: theme.typography.caption.fontSize,
+    ...theme.typography.body2,
     color: theme.colors.text,
+    marginLeft: theme.spacing.sm,
   },
   clearDateButton: {
     marginLeft: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.roundness,
-    elevation: 2,
+    padding: theme.spacing.xs,
   },
-  clearDateText: {
-    color: theme.colors.error,
-    fontFamily: theme.typography.medium.fontFamily,
-    fontSize: theme.typography.caption.fontSize,
+  searchActionContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   searchButton: {
-    borderRadius: theme.roundness,
-    elevation: 2,
-    backgroundColor: theme.colors.primary,
+    flex: 3,
+    marginRight: searchPerformed => searchPerformed ? theme.spacing.sm : 0,
   },
-  buttonContent: {
-    paddingVertical: theme.spacing.xs,
-  },
-  buttonLabel: {
-    fontFamily: theme.typography.medium.fontFamily,
-    fontSize: theme.typography.regular.fontSize,
+  resetButton: {
+    flex: 1,
+    borderColor: theme.colors.primary,
   },
   errorText: {
     color: theme.colors.error,
-    fontFamily: theme.typography.regular.fontFamily,
-    fontSize: theme.typography.caption.fontSize,
-    marginTop: theme.spacing.xs,
-    fontStyle: 'italic',
+    ...theme.typography.caption,
+    marginTop: theme.spacing.sm,
   },
-  dateFilterContainer: {
+  searchResultsHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-  },
-  dateFilterButton: {
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
-    padding: 10,
-    elevation: 2,
-    flex: 1,
-  },
-  dateFilterContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dateFilterLabel: {
-    fontWeight: 'bold',
-    marginRight: 4,
-    color: theme.colors.primary,
-  },
-  dateFilterText: {
-    flex: 1,
-    color: '#555',
-  },
-  clearDateButton: {
-    marginLeft: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#e8e8e8',
-    borderRadius: 4,
-  },
-  clearDateText: {
-    color: theme.colors.error || '#f44336',
-    fontWeight: 'bold',
-    fontSize: 12,
-  },
-  searchButton: {
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  errorText: {
-    color: theme.colors.error || '#f44336',
-    fontSize: 12,
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.background,
-  },
-  card: {
     marginBottom: theme.spacing.md,
   },
-  cardContent: {
-    borderRadius: theme.roundness,
-    elevation: 2,
+  sectionTitle: {
+    ...theme.typography.h3,
+    color: theme.colors.text,
+  },
+  resultCount: {
     backgroundColor: theme.colors.surface,
-    shadowColor: theme.colors.elevation.level2,
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  cardTitle: {
-    fontFamily: theme.typography.title.fontFamily,
-    fontWeight: theme.typography.title.fontWeight,
-    fontSize: theme.typography.title.fontSize,
-    color: theme.colors.text,
-  },
-  cardSubtitle: {
-    fontFamily: theme.typography.regular.fontFamily,
-    fontSize: theme.typography.regular.fontSize,
-    color: theme.colors.text,
   },
   searchResult: {
     marginBottom: theme.spacing.sm,
-    paddingBottom: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.elevation.level1,
   },
-  searchResultsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing.sm,
-    paddingBottom: theme.spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.elevation.level1,
-  },
-  resultCount: {
-    fontFamily: theme.typography.caption.fontFamily,
-    fontSize: theme.typography.caption.fontSize,
-    color: theme.colors.disabled,
-    fontStyle: 'italic',
+  resultDivider: {
+    marginTop: theme.spacing.md,
+    backgroundColor: theme.colors.divider,
   },
   resultHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  symptomItem: {
+    marginBottom: theme.spacing.sm,
+  },
+  itemDivider: {
+    marginVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.divider,
+  },
+  symptomName: {
+    ...theme.typography.medium,
+    fontSize: 16,
+    flex: 1,
+    marginBottom: theme.spacing.xs,
   },
   severityPill: {
     paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.roundness,
-    minWidth: 45,
-    alignItems: 'center',
-  },
-  severityText: {
-    color: '#FFFFFF',
-    fontFamily: theme.typography.medium.fontFamily,
-    fontSize: theme.typography.caption.fontSize,
-  },
-  dateText: {
-    fontFamily: theme.typography.regular.fontFamily,
-    fontSize: theme.typography.caption.fontSize,
-    color: theme.colors.disabled,
-    marginTop: theme.spacing.xs,
-    marginBottom: theme.spacing.xs,
-  },
-  searchResultsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    paddingBottom: 6,
-  },
-  resultCount: {
-    fontSize: 14,
-    color: '#666',
-    fontStyle: 'italic',
-  },
-  resultHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  severityPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: theme.spacing.xs / 2,
     borderRadius: 10,
     minWidth: 45,
     alignItems: 'center',
   },
   severityText: {
     color: 'white',
-    fontWeight: 'bold',
+    ...theme.typography.bold,
     fontSize: 12,
   },
   dateText: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-    marginBottom: 4,
-  },
-  symptomItem: {
-    marginBottom: theme.spacing.sm,
-    paddingBottom: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.elevation.level1,
-  },
-  medicationItem: {
-    marginBottom: theme.spacing.sm,
-    paddingBottom: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.elevation.level1,
-  },
-  symptomName: {
-    fontFamily: theme.typography.medium.fontFamily,
-    fontSize: theme.typography.regular.fontSize,
-    color: theme.colors.text,
-  },
-  medicationName: {
-    fontFamily: theme.typography.medium.fontFamily,
-    fontSize: theme.typography.regular.fontSize,
-    color: theme.colors.text,
+    ...theme.typography.caption,
+    color: theme.colors.disabled,
+    marginBottom: theme.spacing.xs,
   },
   details: {
-    fontFamily: theme.typography.regular.fontFamily,
-    fontSize: theme.typography.caption.fontSize,
+    ...theme.typography.body2,
     color: theme.colors.text,
     marginTop: theme.spacing.xs,
   },
-  noDataMessage: {
-    fontFamily: theme.typography.regular.fontFamily,
-    fontSize: theme.typography.regular.fontSize,
+  medicationItem: {
+    marginBottom: theme.spacing.sm,
+  },
+  medicationName: {
+    ...theme.typography.medium,
+    fontSize: 16,
+    marginBottom: theme.spacing.xs,
+  },
+  medicationDetails: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: theme.spacing.xs,
+  },
+  medicationChip: {
+    marginRight: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+    backgroundColor: theme.colors.surface,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.xl,
+  },
+  loadingText: {
+    ...theme.typography.body1,
     color: theme.colors.disabled,
-    fontStyle: 'italic',
+    marginTop: theme.spacing.md,
+  },
+  noDataMessage: {
+    ...theme.typography.body1,
+    color: theme.colors.disabled,
+    textAlign: 'center',
     marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: theme.spacing.lg,
+  },
+  emptyStateButton: {
+    marginTop: theme.spacing.md,
   },
   snackbar: {
     backgroundColor: theme.colors.error,
-    borderRadius: theme.roundness,
-  },
-  noDataMessage: {
-    fontStyle: 'italic',
-    color: '#666',
-    marginTop: 10,
-    marginBottom: 5,
   },
 });
 
