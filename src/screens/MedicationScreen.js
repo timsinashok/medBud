@@ -64,7 +64,10 @@ function MedicationScreen() {
 
   const startEditing = (medication) => {
     setEditingMedication({
-      ...medication,
+      _id: medication._id,
+      name: medication.name || '',
+      dosage: medication.dosage || '',
+      frequency: medication.frequency || '',
       notes: medication.notes || ''
     });
     setShowEditDialog(true);
@@ -237,7 +240,8 @@ function MedicationScreen() {
               value={editingMedication?.notes || ''}
               onChangeText={text => setEditingMedication({...editingMedication, notes: text})}
               multiline
-              style={styles.input}
+              numberOfLines={3}
+              style={[styles.input, styles.notesInput]}
               disabled={isLoading}
             />
           </Dialog.Content>
@@ -268,6 +272,9 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 10,
+  },
+  notesInput: {
+    minHeight: 80,
   },
   cardActions: {
     position: 'absolute',

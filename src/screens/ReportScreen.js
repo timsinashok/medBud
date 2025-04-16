@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Image } from 'react-native';
+import { View, StyleSheet, Image, ScrollView } from 'react-native';
 import { Button, Card, Title, Paragraph, Divider } from 'react-native-paper';
 import { api } from '../services/api';
 
@@ -85,16 +85,30 @@ function ReportScreen() {
     try {
       setIsLoading(true);
       setError(null);
+      
+      if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+        setError('End date cannot be earlier than start date.');
+        return;
+      }
 
       const reportData = await api.generateReport(USER_ID, startDate, endDate, 'summary');
-      
+  
       setReport({
         content: formatReportContent(reportData),
         generatedAt: new Date()
       });
     } catch (error) {
       console.error('Error generating report:', error);
-      setError('Failed to generate report. Please try again.');
+  
+      if (error.status === 404) {
+        setError('No health data found for the selected date range. Please try a different date range.');
+      } else if (error.status === 500) {
+        setError('The AI Report Generator encountered a problem. Please try again later.');
+      } else {
+        setError('Unexpected error. Please check your connection and try again.');
+      }
+  
+      setReport(null);
     } finally {
       setIsLoading(false);
     }
@@ -332,7 +346,7 @@ function ReportScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       {error && (
         <Card style={[styles.card, styles.errorCard]}>
           <Card.Content>
@@ -366,7 +380,7 @@ function ReportScreen() {
           </Paragraph>
           <Button 
             mode="contained" 
-            onPress={generateReport}
+            onPress={generateReport} 
             loading={isLoading}
             disabled={isLoading}
             style={styles.button}
@@ -382,7 +396,7 @@ function ReportScreen() {
             <View style={styles.reportHeader}>
               <Title>Health Report</Title>
               <Button 
-                mode="contained"
+                mode="contained" 
                 onPress={exportToPdf}
                 loading={isPdfExporting}
                 disabled={isPdfExporting}
@@ -407,14 +421,13 @@ function ReportScreen() {
           </Card.Content>
         </Card>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
     backgroundColor: '#f5f5f5',
   },
   card: {

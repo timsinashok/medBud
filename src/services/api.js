@@ -98,30 +98,32 @@ export const api = {
   async generateReport(userId, startDate = null, endDate = null, format = 'summary') {
     let url = `${BASE_URL}/api/reports/${userId}`;
     
-    // Add query parameters if they exist
     const params = new URLSearchParams();
-    if (startDate) {
-      params.append('start_date', startDate);
-    }
-    if (endDate) {
-      params.append('end_date', endDate);
-    }
-    // Set report format
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
     params.append('report_format', format);
-    
-    // Append parameters to URL if any exist
+  
     if (params.toString()) {
       url += `?${params.toString()}`;
     }
-
+  
     const response = await fetch(url);
-    
+  
     if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+      let message = `HTTP error! status: ${response.status}`;
+      try {
+        const data = await response.json();
+        message = data.detail || data.message || message;
+      } catch (_) {
+        // response body might not be JSON
+      }
+  
+      const error = new Error(message);
+      error.status = response.status;
+      throw error;
     }
-    
-    // If it's a PDF, return the blob, otherwise return the text
+  
+    // return text (not JSON) for summary report
     if (format === 'pdf') {
       return await response.blob();
     }

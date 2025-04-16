@@ -41,7 +41,10 @@ function HomeScreen() {
         return name.includes(searchLower) || details.includes(searchLower);
       });
       
-      setFilteredSymptoms(filtered);
+      const sortedFiltered = [...filtered].sort((a, b) =>
+        new Date(b.timestamp) - new Date(a.timestamp)
+      );
+      setFilteredSymptoms(sortedFiltered);
     } catch (error) {
       console.error('Error filtering symptoms:', error);
       setFilteredSymptoms([]);
