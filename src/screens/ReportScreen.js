@@ -7,6 +7,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from 'react-native-paper-dates';
+import NetInfo from '@react-native-community/netinfo';
 import { api } from '../services/api';
 import { theme } from '../theme/theme';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -46,6 +47,24 @@ function ReportScreen() {
   const [error, setError] = useState(null);
   const [logoDataUrl, setLogoDataUrl] = useState(null);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+
+  // Setup network state listeners
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      const isConnected = state.isConnected && state.isInternetReachable;
+      setIsOnline(isConnected);
+    });
+
+    // Initial network check
+    NetInfo.fetch().then(state => {
+      setIsOnline(state.isConnected && state.isInternetReachable);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Load and convert logo on component mount
   useEffect(() => {
@@ -97,6 +116,13 @@ function ReportScreen() {
       setIsLoading(true);
       setError(null);
       
+      // Check network connection
+      const netInfo = await NetInfo.fetch();
+      if (!netInfo.isConnected || !netInfo.isInternetReachable) {
+        setError('No Internet connection. Please check your network and try again.');
+        return;
+      }
+      
       if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
         setError('End date cannot be earlier than start date.');
         return;
@@ -129,6 +155,13 @@ function ReportScreen() {
     try {
       setIsPdfExporting(true);
       setError(null);
+
+      // Check network connection
+      const netInfo = await NetInfo.fetch();
+      if (!netInfo.isConnected || !netInfo.isInternetReachable) {
+        setError('No Internet connection. Please check your network and try again.');
+        return;
+      }
 
       // Import pdfmake dynamically
       const pdfMake = (await import('pdfmake/build/pdfmake')).default;
@@ -391,6 +424,15 @@ function ReportScreen() {
       style={[styles.container, { paddingTop: insets.top }]}
       contentContainerStyle={styles.contentContainer}
     >
+      {!isOnline && (
+        <Animated.View entering={FadeIn.duration(400)}>
+          <Surface style={styles.offlineBanner}>
+            <Ionicons name="cloud-offline" size={18} color="#fff" />
+            <Text style={styles.offlineText}>You are offline</Text>
+          </Surface>
+        </Animated.View>
+      )}
+
       {error && (
         <Animated.View entering={FadeIn.duration(400)}>
           <Card style={[styles.errorCard]}>
@@ -718,6 +760,20 @@ const styles = StyleSheet.create({
   },
   snackbar: {
     backgroundColor: theme.colors.error,
+  },
+  offlineBanner: {
+    backgroundColor: theme.colors.error,
+    padding: theme.spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+    borderRadius: theme.roundness,
+  },
+  offlineText: {
+    color: '#fff',
+    ...theme.typography.medium,
+    marginLeft: theme.spacing.xs,
   },
 });
 
