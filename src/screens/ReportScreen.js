@@ -1,23 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Image, ScrollView } from 'react-native';
-import { Button, Card, Title, Paragraph, Divider } from 'react-native-paper';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { Button, Card, Title, Paragraph, Divider, TextInput, Snackbar } from 'react-native-paper';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { api } from '../services/api';
+import { theme } from '../theme/theme';
 
-// Use require for the logo
 const logoImage = require('../../assets/logo.png');
 
-// Temporary user ID - In a real app, this would come from authentication
-const USER_ID = '67ebd559c9003543caba959c';
-
-// Constants for PDF styling
-const THEME_COLOR = '#4a90e2';
-const ACCENT_COLOR = '#2d74da';
-const LIGHT_GRAY = '#f5f5f5';
-const DARK_GRAY = '#666666';
-const PAGE_MARGIN = 20;
-const CONTENT_WIDTH = 170;
-
-// Define fonts
+const THEME_COLOR = theme.colors.primary;
+const ACCENT_COLOR = theme.colors.secondary;
+const LIGHT_GRAY = theme.colors.background;
+const DARK_GRAY = theme.colors.disabled;
 const fonts = {
   Roboto: {
     normal: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Regular.ttf',
@@ -26,6 +19,8 @@ const fonts = {
     bolditalics: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-MediumItalic.ttf'
   }
 };
+
+const USER_ID = '67ebd559c9003543caba959c';
 
 function ReportScreen() {
   const [startDate, setStartDate] = useState('');
@@ -36,25 +31,18 @@ function ReportScreen() {
   const [error, setError] = useState(null);
   const [logoDataUrl, setLogoDataUrl] = useState(null);
 
-  // Load and convert logo on component mount
   useEffect(() => {
     const loadLogo = async () => {
       try {
-        // Fetch the logo as a blob
         const response = await fetch(logoImage);
         const blob = await response.blob();
-        
-        // Convert blob to base64
         const reader = new FileReader();
-        reader.onloadend = () => {
-          setLogoDataUrl(reader.result);
-        };
+        reader.onloadend = () => setLogoDataUrl(reader.result);
         reader.readAsDataURL(blob);
       } catch (err) {
         console.warn('Error pre-loading logo:', err);
       }
     };
-
     loadLogo();
   }, []);
 
@@ -63,17 +51,9 @@ function ReportScreen() {
       const reportData = JSON.parse(rawContent);
       const reportContent = reportData.generated_report;
       const sections = reportContent.split('###').filter(Boolean);
-      
       return sections.map((section, index) => {
-        const cleanSection = section
-          .replace(/\\n/g, '\n')
-          .replace(/\*\*/g, '')
-          .trim();
-        
-        return {
-          id: index,
-          content: cleanSection
-        };
+        const cleanSection = section.replace(/\\n/g, '\n').replace(/\*\*/g, '').trim();
+        return { id: index, content: cleanSection };
       });
     } catch (error) {
       console.error('Error parsing report:', error);
@@ -92,22 +72,19 @@ function ReportScreen() {
       }
 
       const reportData = await api.generateReport(USER_ID, startDate, endDate, 'summary');
-  
       setReport({
         content: formatReportContent(reportData),
         generatedAt: new Date()
       });
     } catch (error) {
       console.error('Error generating report:', error);
-  
       if (error.status === 404) {
-        setError('No health data found for the selected date range. Please try a different date range.');
+        setError('No health data found for the selected date range.');
       } else if (error.status === 500) {
-        setError('The AI Report Generator encountered a problem. Please try again later.');
+        setError('The AI Report Generator encountered a problem.');
       } else {
-        setError('Unexpected error. Please check your connection and try again.');
+        setError('Unexpected error. Please try again.');
       }
-  
       setReport(null);
     } finally {
       setIsLoading(false);
@@ -119,14 +96,11 @@ function ReportScreen() {
       setIsPdfExporting(true);
       setError(null);
 
-      // Import pdfmake dynamically
       const pdfMake = (await import('pdfmake/build/pdfmake')).default;
 
-      // Process sections
       const sections = report.content.map(section => {
         const lines = section.content.split('\n');
         const title = lines[0].trim();
-        // Process content to create proper paragraphs and lists
         const contentLines = lines.slice(1);
         const processedContent = [];
         let currentParagraph = [];
@@ -156,27 +130,16 @@ function ReportScreen() {
         return { title, content: processedContent };
       });
 
-      // Define document definition
       const docDefinition = {
         pageSize: 'A4',
         pageMargins: [40, 60, 40, 60],
-        
         header: {
           stack: [
             {
-              canvas: [
-                {
-                  type: 'rect',
-                  x: 0,
-                  y: 0,
-                  w: 595.28,
-                  h: 60,
-                  color: THEME_COLOR,
-                }
-              ]
+              canvas: [{ type: 'rect', x: 0, y: 0, w: 595.28, h: 60, color: THEME_COLOR }]
             },
             {
-              text: 'HEALTH REPORT',
+              text: 'MEDBUD HEALTH REPORT',
               fontSize: 28,
               bold: true,
               color: 'white',
@@ -184,22 +147,11 @@ function ReportScreen() {
             }
           ]
         },
-
         footer: function(currentPage, pageCount) {
           return {
             stack: [
               {
-                canvas: [
-                  {
-                    type: 'line',
-                    x1: 40,
-                    y1: -30,
-                    x2: 555.28,
-                    y2: -30,
-                    lineWidth: 1,
-                    lineColor: THEME_COLOR
-                  }
-                ]
+                canvas: [{ type: 'line', x1: 40, y1: -30, x2: 555.28, y2: -30, lineWidth: 1, lineColor: THEME_COLOR }]
               },
               {
                 text: `Page ${currentPage} of ${pageCount}`,
@@ -211,9 +163,7 @@ function ReportScreen() {
             ]
           };
         },
-
         content: [
-          // Report info
           {
             stack: [
               {
@@ -234,40 +184,17 @@ function ReportScreen() {
                 columnGap: 20
               },
               {
-                canvas: [
-                  {
-                    type: 'line',
-                    x1: 0,
-                    y1: 10,
-                    x2: 515.28,
-                    y2: 10,
-                    lineWidth: 1,
-                    lineColor: THEME_COLOR
-                  }
-                ]
+                canvas: [{ type: 'line', x1: 0, y1: 10, x2: 515.28, y2: 10, lineWidth: 1, lineColor: THEME_COLOR }]
               }
             ]
           },
-
-          // Sections
           ...sections.map((section, index) => ({
             stack: [
-              // Section header
               {
                 margin: [0, 20, 0, 0],
                 columns: [
                   {
-                    canvas: [
-                      {
-                        type: 'rect',
-                        x: 0,
-                        y: 0,
-                        w: 4,
-                        h: 24,
-                        color: ACCENT_COLOR
-                      }
-                    ],
-                    width: 4
+                    canvas: [{ type: 'rect', x: 0, y: 0, w: 4, h: 24, color: ACCENT_COLOR }]
                   },
                   {
                     text: section.title,
@@ -278,24 +205,14 @@ function ReportScreen() {
                   }
                 ]
               },
-              // Section content
               {
                 stack: section.content.map(line => {
                   if (line.startsWith('*')) {
                     return {
                       margin: [15, 5, 0, 5],
                       columns: [
-                        {
-                          text: '•',
-                          width: 15,
-                          color: ACCENT_COLOR,
-                          fontSize: 11
-                        },
-                        {
-                          text: line.substring(1).trim(),
-                          fontSize: 11,
-                          color: '#333333'
-                        }
+                        { text: '•', width: 15, color: ACCENT_COLOR, fontSize: 11 },
+                        { text: line.substring(1).trim(), fontSize: 11, color: theme.colors.text }
                       ]
                     };
                   }
@@ -304,39 +221,22 @@ function ReportScreen() {
                     fontSize: 11,
                     lineHeight: 1.4,
                     margin: [0, 8, 0, 8],
-                    color: '#333333'
+                    color: theme.colors.text
                   };
                 }),
                 margin: [15, 10, 0, 0]
               },
-              // Section separator
               index < sections.length - 1 ? {
-                canvas: [
-                  {
-                    type: 'line',
-                    x1: 0,
-                    y1: 20,
-                    x2: 515.28,
-                    y2: 20,
-                    lineWidth: 0.5,
-                    lineColor: '#e0e0e0'
-                  }
-                ],
-                margin: [0, 10, 0, 10]
+                canvas: [{ type: 'line', x1: 0, y1: 20, x2: 515.28, y2: 20, lineWidth: 0.5, lineColor: theme.colors.elevation.level1 }]
               } : {}
             ]
           }))
         ],
-
-        defaultStyle: {
-          font: 'Roboto'
-        }
+        defaultStyle: { font: 'Roboto' }
       };
 
-      // Create PDF with custom fonts
       const pdf = pdfMake.createPdf(docDefinition, null, fonts);
-      pdf.download('health-report.pdf');
-
+      pdf.download('medbud-health-report.pdf');
     } catch (error) {
       console.error('Error generating PDF:', error);
       setError(`Failed to export PDF: ${error.message}`);
@@ -348,79 +248,103 @@ function ReportScreen() {
   return (
     <ScrollView style={styles.container}>
       {error && (
-        <Card style={[styles.card, styles.errorCard]}>
-          <Card.Content>
-            <Paragraph style={styles.errorText}>{error}</Paragraph>
-          </Card.Content>
-        </Card>
+        <Animated.View entering={FadeInDown.duration(300)} style={styles.errorCard}>
+          <Card style={styles.cardContent}>
+            <Card.Content>
+              <Paragraph style={styles.errorText}>{error}</Paragraph>
+            </Card.Content>
+          </Card>
+        </Animated.View>
       )}
 
-      <Card style={styles.card}>
-        <Card.Content>
-          <Title>Generate Health Report</Title>
-          <View style={styles.dateContainer}>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              style={styles.dateInput}
-              max={new Date().toISOString().split('T')[0]}
-            />
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              style={styles.dateInput}
-              min={startDate}
-              max={new Date().toISOString().split('T')[0]}
-            />
-          </View>
-          <Paragraph style={styles.dateNote}>
-            Note: If no dates are selected, the report will include the last 30 days
-          </Paragraph>
-          <Button 
-            mode="contained" 
-            onPress={generateReport} 
-            loading={isLoading}
-            disabled={isLoading}
-            style={styles.button}
-          >
-            Generate Report
-          </Button>
-        </Card.Content>
-      </Card>
+      <Animated.View entering={FadeInDown.duration(300).delay(100)} style={styles.card}>
+        <Card style={styles.cardContent}>
+          <Card.Content>
+            <Title style={styles.cardTitle}>Generate Health Report</Title>
+            <View style={styles.dateContainer}>
+              <TextInput
+                label="Start Date"
+                value={startDate}
+                onChangeText={setStartDate}
+                style={styles.dateInput}
+                placeholder="YYYY-MM-DD"
+                accessibilityLabel="Enter start date"
+              />
+              <TextInput
+                label="End Date"
+                value={endDate}
+                onChangeText={setEndDate}
+                style={styles.dateInput}
+                placeholder="YYYY-MM-DD"
+                accessibilityLabel="Enter end date"
+              />
+            </View>
+            <Paragraph style={styles.dateNote}>
+              Note: If no dates are selected, the report will include the last 30 days
+            </Paragraph>
+            <Button 
+              mode="contained" 
+              onPress={generateReport} 
+              loading={isLoading}
+              disabled={isLoading}
+              style={styles.button}
+              contentStyle={styles.buttonContent}
+              labelStyle={styles.buttonLabel}
+              accessibilityLabel="Generate report"
+            >
+              Generate Report
+            </Button>
+          </Card.Content>
+        </Card>
+      </Animated.View>
 
       {report && (
-        <Card style={styles.card}>
-          <Card.Content>
-            <View style={styles.reportHeader}>
-              <Title>Health Report</Title>
-              <Button 
-                mode="contained" 
-                onPress={exportToPdf}
-                loading={isPdfExporting}
-                disabled={isPdfExporting}
-                icon="download"
-                style={styles.exportButton}
-                labelStyle={styles.exportButtonLabel}
-              >
-                Export as PDF
-              </Button>
-            </View>
-            <Paragraph style={styles.reportDate}>
-              Generated on: {report.generatedAt.toLocaleDateString()}
-            </Paragraph>
-            {report.content.map((section, index) => (
-              <View key={section.id} style={styles.section}>
-                {index > 0 && <Divider style={styles.divider} />}
-                <Paragraph style={styles.reportContent}>
-                  {section.content}
-                </Paragraph>
+        <Animated.View entering={FadeInDown.duration(300).delay(200)} style={styles.card}>
+          <Card style={styles.cardContent}>
+            <Card.Content>
+              <View style={styles.reportHeader}>
+                <Title style={styles.cardTitle}>Health Report</Title>
+                <Button 
+                  mode="contained" 
+                  onPress={exportToPdf}
+                  loading={isPdfExporting}
+                  disabled={isPdfExporting}
+                  icon="download"
+                  style={styles.exportButton}
+                  contentStyle={styles.buttonContent}
+                  labelStyle={styles.exportButtonLabel}
+                  accessibilityLabel="Export report as PDF"
+                >
+                  Export PDF
+                </Button>
               </View>
-            ))}
-          </Card.Content>
-        </Card>
+              <Paragraph style={styles.reportDate}>
+                Generated on: {report.generatedAt.toLocaleDateString()}
+              </Paragraph>
+              {report.content.map((section, index) => (
+                <Animated.View key={section.id} entering={FadeInDown.duration(300).delay(200 + index * 50)} style={styles.section}>
+                  {index > 0 && <Divider style={styles.divider} />}
+                  <Paragraph style={styles.reportContent}>
+                    {section.content}
+                  </Paragraph>
+                </Animated.View>
+              ))}
+            </Card.Content>
+          </Card>
+        </Animated.View>
       )}
+
+      <Snackbar
+        visible={!!error}
+        onDismiss={() => setError(null)}
+        action={{
+          label: 'Retry',
+          onPress: () => generateReport(),
+        }}
+        style={styles.snackbar}
+      >
+        {error}
+      </Snackbar>
     </ScrollView>
   );
 }
@@ -428,73 +352,104 @@ function ReportScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.background,
   },
   card: {
-    marginTop: 16,
+    marginBottom: theme.spacing.md,
+  },
+  cardContent: {
+    borderRadius: theme.roundness,
+    elevation: 2,
+    backgroundColor: theme.colors.surface,
+    shadowColor: theme.colors.elevation.level2,
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
   errorCard: {
-    backgroundColor: '#ffebee',
+    marginBottom: theme.spacing.md,
   },
   errorText: {
-    color: '#c62828',
+    color: theme.colors.error,
+    fontFamily: theme.typography.regular.fontFamily,
+    fontSize: theme.typography.regular.fontSize,
+  },
+  cardTitle: {
+    fontFamily: theme.typography.title.fontFamily,
+    fontWeight: theme.typography.title.fontWeight,
+    fontSize: theme.typography.title.fontSize,
+    color: theme.colors.text,
   },
   dateContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 16,
-    marginBottom: 16,
-    gap: 16,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    gap: theme.spacing.sm,
   },
   dateInput: {
     flex: 1,
-    padding: 8,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#ccc',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.roundness,
   },
   dateNote: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 8,
+    fontFamily: theme.typography.caption.fontFamily,
+    fontSize: theme.typography.caption.fontSize,
+    color: theme.colors.disabled,
+    marginTop: theme.spacing.sm,
     fontStyle: 'italic',
   },
   button: {
-    marginTop: 16,
+    borderRadius: theme.roundness,
+    elevation: 2,
+    backgroundColor: theme.colors.primary,
+  },
+  buttonContent: {
+    paddingVertical: theme.spacing.xs,
+  },
+  buttonLabel: {
+    fontFamily: theme.typography.medium.fontFamily,
+    fontSize: theme.typography.regular.fontSize,
   },
   reportHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: theme.spacing.md,
   },
   reportDate: {
-    color: '#666',
-    fontSize: 14,
-    marginBottom: 16,
+    fontFamily: theme.typography.caption.fontFamily,
+    fontSize: theme.typography.caption.fontSize,
+    color: theme.colors.disabled,
+    marginBottom: theme.spacing.md,
   },
   section: {
-    marginTop: 16,
+    marginTop: theme.spacing.md,
   },
   divider: {
-    marginVertical: 16,
+    marginVertical: theme.spacing.md,
+    backgroundColor: theme.colors.elevation.level1,
   },
   reportContent: {
-    fontSize: 14,
+    fontFamily: theme.typography.regular.fontFamily,
+    fontSize: theme.typography.regular.fontSize,
     lineHeight: 24,
-    whiteSpace: 'pre-wrap',
+    color: theme.colors.text,
   },
   exportButton: {
-    backgroundColor: '#4a90e2',
-    borderRadius: 8,
+    borderRadius: theme.roundness,
     elevation: 2,
-    paddingHorizontal: 16,
+    backgroundColor: theme.colors.secondary,
   },
   exportButtonLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    textTransform: 'none',
+    fontFamily: theme.typography.medium.fontFamily,
+    fontSize: theme.typography.regular.fontSize,
+  },
+  snackbar: {
+    backgroundColor: theme.colors.error,
+    borderRadius: theme.roundness,
   },
 });
 
-export default ReportScreen; 
+export default ReportScreen;
