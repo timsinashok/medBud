@@ -63,8 +63,12 @@ function SymptomScreen() {
 
   const loadSymptoms = async (refresh = false) => {
     try {
-      if (refresh) setIsRefreshing(true);
-      else setIsLoading(true);
+      if (refresh) {
+        setIsRefreshing(true);
+        setSkip(0);
+      } else {
+        setIsLoading(true);
+      }
       setError(null);
 
       const currentSkip = refresh ? 0 : skip;
@@ -81,7 +85,9 @@ function SymptomScreen() {
       }
 
       setHasMore(symptomsData.length === limit);
-      if (!refresh) setSkip(currentSkip + symptomsData.length);
+      if (!refresh) {
+        setSkip(currentSkip + symptomsData.length);
+      }
     } catch (error) {
       console.error('Error loading symptoms:', error);
       setError('Failed to load symptoms. Please try again.');
@@ -424,8 +430,8 @@ function SymptomScreen() {
         visible={!!error}
         onDismiss={() => setError(null)}
         action={{
-          label: 'Retry',
-          onPress: () => loadSymptoms(true),
+          label: 'Dismiss',
+          onPress: () => setError(null),
         }}
         style={styles.snackbar}
       >

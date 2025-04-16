@@ -11,6 +11,7 @@ import { api } from '../services/api';
 import { theme } from '../theme/theme';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
+// Use require for the logo
 const logoImage = require('../../assets/logo.png');
 
 // Temporary user ID - In a real app, this would come from authentication
@@ -34,8 +35,6 @@ const fonts = {
   }
 };
 
-const USER_ID = '67ebd559c9003543caba959c';
-
 function ReportScreen() {
   const insets = useSafeAreaInsets();
   
@@ -48,18 +47,25 @@ function ReportScreen() {
   const [logoDataUrl, setLogoDataUrl] = useState(null);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
 
+  // Load and convert logo on component mount
   useEffect(() => {
     const loadLogo = async () => {
       try {
+        // Fetch the logo as a blob
         const response = await fetch(logoImage);
         const blob = await response.blob();
+        
+        // Convert blob to base64
         const reader = new FileReader();
-        reader.onloadend = () => setLogoDataUrl(reader.result);
+        reader.onloadend = () => {
+          setLogoDataUrl(reader.result);
+        };
         reader.readAsDataURL(blob);
       } catch (err) {
         console.warn('Error pre-loading logo:', err);
       }
     };
+
     loadLogo();
   }, []);
 
@@ -68,9 +74,17 @@ function ReportScreen() {
       const reportData = JSON.parse(rawContent);
       const reportContent = reportData.generated_report;
       const sections = reportContent.split('###').filter(Boolean);
+      
       return sections.map((section, index) => {
-        const cleanSection = section.replace(/\\n/g, '\n').replace(/\*\*/g, '').trim();
-        return { id: index, content: cleanSection };
+        const cleanSection = section
+          .replace(/\\n/g, '\n')
+          .replace(/\*\*/g, '')
+          .trim();
+        
+        return {
+          id: index,
+          content: cleanSection
+        };
       });
     } catch (error) {
       console.error('Error parsing report:', error);
@@ -89,19 +103,22 @@ function ReportScreen() {
       }
 
       const reportData = await api.generateReport(USER_ID, startDate, endDate, 'summary');
+  
       setReport({
         content: formatReportContent(reportData),
         generatedAt: new Date()
       });
     } catch (error) {
       console.error('Error generating report:', error);
+  
       if (error.status === 404) {
-        setError('No health data found for the selected date range.');
+        setError('No health data found for the selected date range. Please try a different date range.');
       } else if (error.status === 500) {
-        setError('The AI Report Generator encountered a problem.');
+        setError('The AI Report Generator encountered a problem. Please try again later.');
       } else {
-        setError('Unexpected error. Please try again.');
+        setError('Unexpected error. Please check your connection and try again.');
       }
+  
       setReport(null);
     } finally {
       setIsLoading(false);
@@ -113,11 +130,14 @@ function ReportScreen() {
       setIsPdfExporting(true);
       setError(null);
 
+      // Import pdfmake dynamically
       const pdfMake = (await import('pdfmake/build/pdfmake')).default;
 
+      // Process sections
       const sections = report.content.map(section => {
         const lines = section.content.split('\n');
         const title = lines[0].trim();
+        // Process content to create proper paragraphs and lists
         const contentLines = lines.slice(1);
         const processedContent = [];
         let currentParagraph = [];
@@ -147,16 +167,27 @@ function ReportScreen() {
         return { title, content: processedContent };
       });
 
+      // Define document definition
       const docDefinition = {
         pageSize: 'A4',
         pageMargins: [40, 60, 40, 60],
+        
         header: {
           stack: [
             {
-              canvas: [{ type: 'rect', x: 0, y: 0, w: 595.28, h: 60, color: THEME_COLOR }]
+              canvas: [
+                {
+                  type: 'rect',
+                  x: 0,
+                  y: 0,
+                  w: 595.28,
+                  h: 60,
+                  color: THEME_COLOR,
+                }
+              ]
             },
             {
-              text: 'MEDBUD HEALTH REPORT',
+              text: 'HEALTH REPORT',
               fontSize: 28,
               bold: true,
               color: 'white',
@@ -164,11 +195,22 @@ function ReportScreen() {
             }
           ]
         },
+
         footer: function(currentPage, pageCount) {
           return {
             stack: [
               {
-                canvas: [{ type: 'line', x1: 40, y1: -30, x2: 555.28, y2: -30, lineWidth: 1, lineColor: THEME_COLOR }]
+                canvas: [
+                  {
+                    type: 'line',
+                    x1: 40,
+                    y1: -30,
+                    x2: 555.28,
+                    y2: -30,
+                    lineWidth: 1,
+                    lineColor: THEME_COLOR
+                  }
+                ]
               },
               {
                 text: `Page ${currentPage} of ${pageCount}`,
@@ -180,7 +222,9 @@ function ReportScreen() {
             ]
           };
         },
+
         content: [
+          // Report info
           {
             stack: [
               {
@@ -201,17 +245,40 @@ function ReportScreen() {
                 columnGap: 20
               },
               {
-                canvas: [{ type: 'line', x1: 0, y1: 10, x2: 515.28, y2: 10, lineWidth: 1, lineColor: THEME_COLOR }]
+                canvas: [
+                  {
+                    type: 'line',
+                    x1: 0,
+                    y1: 10,
+                    x2: 515.28,
+                    y2: 10,
+                    lineWidth: 1,
+                    lineColor: THEME_COLOR
+                  }
+                ]
               }
             ]
           },
+
+          // Sections
           ...sections.map((section, index) => ({
             stack: [
+              // Section header
               {
                 margin: [0, 20, 0, 0],
                 columns: [
                   {
-                    canvas: [{ type: 'rect', x: 0, y: 0, w: 4, h: 24, color: ACCENT_COLOR }]
+                    canvas: [
+                      {
+                        type: 'rect',
+                        x: 0,
+                        y: 0,
+                        w: 4,
+                        h: 24,
+                        color: ACCENT_COLOR
+                      }
+                    ],
+                    width: 4
                   },
                   {
                     text: section.title,
@@ -222,14 +289,24 @@ function ReportScreen() {
                   }
                 ]
               },
+              // Section content
               {
                 stack: section.content.map(line => {
                   if (line.startsWith('*')) {
                     return {
                       margin: [15, 5, 0, 5],
                       columns: [
-                        { text: '•', width: 15, color: ACCENT_COLOR, fontSize: 11 },
-                        { text: line.substring(1).trim(), fontSize: 11, color: theme.colors.text }
+                        {
+                          text: '•',
+                          width: 15,
+                          color: ACCENT_COLOR,
+                          fontSize: 11
+                        },
+                        {
+                          text: line.substring(1).trim(),
+                          fontSize: 11,
+                          color: '#333333'
+                        }
                       ]
                     };
                   }
@@ -238,22 +315,39 @@ function ReportScreen() {
                     fontSize: 11,
                     lineHeight: 1.4,
                     margin: [0, 8, 0, 8],
-                    color: theme.colors.text
+                    color: '#333333'
                   };
                 }),
                 margin: [15, 10, 0, 0]
               },
+              // Section separator
               index < sections.length - 1 ? {
-                canvas: [{ type: 'line', x1: 0, y1: 20, x2: 515.28, y2: 20, lineWidth: 0.5, lineColor: theme.colors.elevation.level1 }]
+                canvas: [
+                  {
+                    type: 'line',
+                    x1: 0,
+                    y1: 20,
+                    x2: 515.28,
+                    y2: 20,
+                    lineWidth: 0.5,
+                    lineColor: '#e0e0e0'
+                  }
+                ],
+                margin: [0, 10, 0, 10]
               } : {}
             ]
           }))
         ],
-        defaultStyle: { font: 'Roboto' }
+
+        defaultStyle: {
+          font: 'Roboto'
+        }
       };
 
+      // Create PDF with custom fonts
       const pdf = pdfMake.createPdf(docDefinition, null, fonts);
-      pdf.download('medbud-health-report.pdf');
+      pdf.download('health-report.pdf');
+
     } catch (error) {
       console.error('Error generating PDF:', error);
       setError(`Failed to export PDF: ${error.message}`);
@@ -463,8 +557,7 @@ function ReportScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#f5f5f5',
   },
   contentContainer: {
     padding: theme.spacing.md,

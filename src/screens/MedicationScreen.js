@@ -18,7 +18,12 @@ function MedicationScreen() {
   const insets = useSafeAreaInsets();
   
   const [medications, setMedications] = useState([]);
-  const [newMedication, setNewMedication] = useState({ name: '', dosage: '', frequency: '', notes: '' });
+  const [newMedication, setNewMedication] = useState({
+    name: '',
+    dosage: '',
+    frequency: '',
+    notes: ''
+  });
   const [editingMedication, setEditingMedication] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -33,7 +38,6 @@ function MedicationScreen() {
   const loadMedications = async () => {
     try {
       setIsLoading(true);
-      setError(null);
       const medicationsData = await api.getMedications(USER_ID);
       setMedications(medicationsData);
     } catch (error) {
@@ -140,7 +144,10 @@ function MedicationScreen() {
       'Delete Medication',
       `Are you sure you want to delete ${medicationName}?`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
         {
           text: 'Delete',
           style: 'destructive',
@@ -158,8 +165,7 @@ function MedicationScreen() {
             }
           },
         },
-      ],
-      { cancelable: true }
+      ]
     );
   };
 
@@ -600,37 +606,6 @@ const styles = StyleSheet.create({
   },
   snackbar: {
     backgroundColor: theme.colors.error,
-  },
-  dialog: {
-    borderRadius: theme.roundness,
-    backgroundColor: theme.colors.surface,
-  },
-  dialogTitle: {
-    fontFamily: theme.typography.title.fontFamily,
-    fontWeight: theme.typography.title.fontWeight,
-    fontSize: theme.typography.title.fontSize,
-    color: theme.colors.text,
-  },
-  dialogButton: {
-    marginLeft: theme.spacing.sm,
-  },
-  saveButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.roundness,
-  },
-  dialogButtonLabel: {
-    fontFamily: theme.typography.medium.fontFamily,
-    fontSize: theme.typography.regular.fontSize,
-  },
-  details: {
-    fontFamily: theme.typography.regular.fontFamily,
-    fontSize: theme.typography.regular.fontSize,
-    color: theme.colors.text,
-    marginTop: theme.spacing.xs,
-  },
-  snackbar: {
-    backgroundColor: theme.colors.error,
-    borderRadius: theme.roundness,
   },
 });
 

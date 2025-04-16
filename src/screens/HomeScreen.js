@@ -30,11 +30,6 @@ function HomeScreen({ navigation }) {
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [searchError, setSearchError] = useState(null);
   const [searchPerformed, setSearchPerformed] = useState(false);
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
-  const [datePickerVisible, setDatePickerVisible] = useState(false);
-  const [searchError, setSearchError] = useState(null);
-  const [searchPerformed, setSearchPerformed] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -74,12 +69,45 @@ function HomeScreen({ navigation }) {
       
       const filtered = allSymptoms.filter(symptom => {
         if (!symptom || typeof symptom !== 'object') return false;
-        const name = symptom.name?.toLowerCase() || '';
-        const details = symptom.details?.toLowerCase() || '';
-        return name.includes(searchLower) || details.includes(searchLower);
+        
+        // Date filtering
+        if (hasDateRange) {
+          const symptomDate = symptom.timestamp ? new Date(symptom.timestamp) : null;
+          
+          // Skip items without valid timestamps if date filtering is active
+          if (!symptomDate) return false;
+          
+          // Filter by start date if set
+          if (startDate && symptomDate < startDate) return false;
+          
+          // Filter by end date if set (end of the day for inclusive range)
+          if (endDate) {
+            const endOfDay = new Date(endDate);
+            endOfDay.setHours(23, 59, 59, 999);
+            if (symptomDate > endOfDay) return false;
+          }
+        }
+        
+        // Text search if search query exists
+        if (hasSearchQuery) {
+          const name = symptom.name?.toLowerCase() || '';
+          const details = symptom.details?.toLowerCase() || '';
+          if (!name.includes(searchLower) && !details.includes(searchLower)) {
+            return false;
+          }
+        }
+        
+        return true;
       });
       
-      setFilteredSymptoms(filtered);
+      // Sort results by most recent first (chronological order)
+      const sortedResults = [...filtered].sort((a, b) => {
+        const dateA = a.timestamp ? new Date(a.timestamp) : new Date(0);
+        const dateB = b.timestamp ? new Date(b.timestamp) : new Date(0);
+        return dateB - dateA; // Descending order (newest first)
+      });
+      
+      setFilteredSymptoms(sortedResults);
     } catch (error) {
       console.error('Error filtering symptoms:', error);
       setFilteredSymptoms([]);
@@ -89,17 +117,24 @@ function HomeScreen({ navigation }) {
 
   const loadData = async (refresh = false) => {
     try {
-      if (refresh) setIsRefreshing(true);
-      else setIsLoading(true);
+      if (refresh) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
       setError(null);
 
+      // Load both symptoms and medications in parallel
       const [symptomsData, medicationsData] = await Promise.all([
-        api.getSymptoms(USER_ID, 0, 100),
+        api.getSymptoms(USER_ID, 0, 100),  // Get last 100 symptoms for search
         api.getMedications(USER_ID)
       ]);
 
+      // Ensure symptomsData is an array
       const validSymptoms = Array.isArray(symptomsData) ? symptomsData : [];
+      
       setAllSymptoms(validSymptoms);
+      // Sort symptoms by timestamp and get the 5 most recent
       const sortedSymptoms = [...validSymptoms].sort((a, b) => 
         new Date(b.timestamp) - new Date(a.timestamp)
       );
@@ -107,7 +142,7 @@ function HomeScreen({ navigation }) {
       setMedications(medicationsData);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
-      setError('Failed to load data. Please try again.');
+      setError('Failed to load dashboard data. Pull down to refresh.');
       setAllSymptoms([]);
       setRecentSymptoms([]);
       setMedications([]);
@@ -141,7 +176,10 @@ function HomeScreen({ navigation }) {
     return theme.severityColors.high;
   };
 
-  const formatDate = (date) => date ? date.toLocaleDateString() : 'Not set';
+  const formatDate = (date) => {
+    if (!date) return 'Not set';
+    return date.toLocaleDateString();
+  };
 
   const resetSearch = useCallback(() => {
     setSearchQuery('');
@@ -390,12 +428,22 @@ function HomeScreen({ navigation }) {
         </Card>
       </Animated.View>
 
+      <DatePickerModal
+        locale="en"
+        mode="range"
+        visible={datePickerVisible}
+        onDismiss={onDismissDatePicker}
+        startDate={startDate}
+        endDate={endDate}
+        onConfirm={onConfirmDatePicker}
+      />
+
       <Snackbar
         visible={!!error}
         onDismiss={() => setError(null)}
         action={{
-          label: 'Retry',
-          onPress: () => loadData(true),
+          label: 'Dismiss',
+          onPress: () => setError(null),
         }}
         style={styles.snackbar}
       >

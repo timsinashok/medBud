@@ -147,52 +147,7 @@ function MainApp() {
   );
 }
 
-const MainApp = () => (
-  <Tab.Navigator
-    screenOptions={({ route }) => ({
-      tabBarIcon: ({ focused, color, size }) => {
-        let iconName;
-        if (route.name === 'Home') iconName = 'home';
-        else if (route.name === 'Symptoms') iconName = 'healing';
-        else if (route.name === 'Medications') iconName = 'medical-services';
-        else if (route.name === 'Reports') iconName = 'description';
-        return <MaterialIcons name={iconName} size={size} color={color} />;
-      },
-      tabBarActiveTintColor: theme.colors.primary,
-      tabBarInactiveTintColor: theme.colors.disabled,
-      tabBarStyle: styles.tabBar,
-      tabBarLabelStyle: styles.tabBarLabel,
-      header: () => (
-        <View style={styles.header}>
-          <Image
-            source={require('./assets/logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </View>
-      ),
-    })}
-  >
-    <Tab.Screen name="Home" component={HomeScreen} />
-    <Tab.Screen name="Symptoms" component={SymptomScreen} />
-    <Tab.Screen name="Medications" component={MedicationScreen} />
-    <Tab.Screen name="Reports" component={ReportScreen} />
-  </Tab.Navigator>
-);
-
-const App = () => {
-  const [fontsLoaded] = useFonts({
-    'MaterialIcons': require('@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialIcons.ttf'),
-  });
-
-  if (!fontsLoaded) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
-  }
-
+export default function App() {
   return (
     <PaperProvider theme={theme}>
       <SafeAreaProvider>
