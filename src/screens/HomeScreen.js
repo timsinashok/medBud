@@ -42,6 +42,16 @@ function HomeScreen() {
         return;
       }
       
+      // Check if search query exceeds maximum keyword limit
+      if (hasSearchQuery) {
+        const keywords = searchQuery.trim().split(/\s+/);
+        if (keywords.length > 20) {
+          setSearchError("Search is limited to a maximum of 20 keywords");
+          setFilteredSymptoms([]);
+          return;
+        }
+      }
+      
       if (!allSymptoms || !Array.isArray(allSymptoms)) {
         setFilteredSymptoms([]);
         return;

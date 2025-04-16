@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl, Text } from 'react-native';
 import { TextInput, Button, Card, Title, Paragraph, Snackbar, ActivityIndicator } from 'react-native-paper';
 import { api } from '../services/api';
 
@@ -18,6 +18,8 @@ function SymptomScreen() {
     severity: '',
     notes: ''
   });
+  const [nameError, setNameError] = useState('');
+  const [notesError, setNotesError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -31,25 +33,20 @@ function SymptomScreen() {
 
   const formatDateTime = (timestamp) => {
     if (!timestamp) return 'N/A';
-    
-    // Create Date object from timestamp
     const date = new Date(timestamp);
-    
-    // Format date and time in Gulf Standard Time (UTC+4)
     const options = {
-      timeZone: 'Asia/Dubai', // Dubai uses Gulf Standard Time (UTC+4)
+      timeZone: 'Asia/Dubai',
       year: 'numeric',
-      month: 'numeric', 
+      month: 'numeric',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
       hour12: true
     };
-    
+
     try {
       return new Intl.DateTimeFormat('en-US', options).format(date) + ' GST';
     } catch (error) {
-      // Fallback in case timeZone is not supported
       console.error('Error formatting date with timezone:', error);
       return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (Local)`;
     }
@@ -68,10 +65,9 @@ function SymptomScreen() {
       const currentSkip = refresh ? 0 : skip;
       const symptomsData = await api.getSymptoms(USER_ID, currentSkip, limit);
 
-      // Sort symptoms by timestamp and limit to most recent 10
-      const sortedSymptoms = symptomsData.sort((a, b) => 
-        new Date(b.timestamp) - new Date(a.timestamp)
-      ).slice(0, MAX_RECENT_SYMPTOMS);
+      const sortedSymptoms = symptomsData
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, MAX_RECENT_SYMPTOMS);
 
       if (refresh) {
         setSymptoms(sortedSymptoms);
@@ -93,32 +89,39 @@ function SymptomScreen() {
   };
 
   const validateSymptom = () => {
+    let isValid = true;
+    setNameError('');
+    setNotesError('');
+    setError(null);
+
     if (!newSymptom.name.trim()) {
-      setError('Symptom name is required');
-      return false;
+      setNameError('Symptom name is required');
+      isValid = false;
     }
+
     if (!newSymptom.severity) {
       setError('Severity is required');
-      return false;
+      isValid = false;
     }
+
     if (!newSymptom.notes.trim()) {
-      setError('Details are required');
-      return false;
+      setNotesError('Details are required');
+      isValid = false;
     }
 
     const nameWordCount = newSymptom.name.trim().split(/\s+/).length;
     if (nameWordCount > MAX_SYMPTOM_NAME_WORDS) {
-      setError(`Symptom name cannot exceed ${MAX_SYMPTOM_NAME_WORDS} words`);
-      return false;
+      setNameError(`Symptom name cannot exceed ${MAX_SYMPTOM_NAME_WORDS} words`);
+      isValid = false;
     }
 
     const detailsWordCount = newSymptom.notes.trim().split(/\s+/).length;
     if (detailsWordCount > MAX_DETAILS_WORDS) {
-      setError(`Details cannot exceed ${MAX_DETAILS_WORDS} words`);
-      return false;
+      setNotesError(`Details cannot exceed ${MAX_DETAILS_WORDS} words`);
+      isValid = false;
     }
 
-    return true;
+    return isValid;
   };
 
   const addSymptom = async () => {
@@ -135,12 +138,10 @@ function SymptomScreen() {
       };
 
       await api.createSymptom(symptomData, USER_ID);
-      
-      // Refresh the symptoms list from the beginning
+
       setSkip(0);
       await loadSymptoms(true);
-      
-      // Clear the form
+
       setNewSymptom({ name: '', severity: '', notes: '' });
     } catch (error) {
       console.error('Error adding symptom:', error);
@@ -166,14 +167,9 @@ function SymptomScreen() {
   };
 
   return (
-    <ScrollView 
+    <ScrollView
       style={styles.container}
-      refreshControl={
-        <RefreshControl
-          refreshing={isRefreshing}
-          onRefresh={onRefresh}
-        />
-      }
+      refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
       onScroll={({ nativeEvent }) => {
         if (isCloseToBottom(nativeEvent)) {
           loadMore();
@@ -187,20 +183,25 @@ function SymptomScreen() {
           <TextInput
             label="Symptom Name (Required)"
             value={newSymptom.name}
-            onChangeText={text => setNewSymptom({...newSymptom, name: text})}
+            onChangeText={text => {
+              setNewSymptom({ ...newSymptom, name: text });
+              if (nameError) setNameError('');
+            }}
             style={styles.input}
             disabled={isLoading}
-            error={!newSymptom.name.trim()}
+            error={!!nameError}
           />
+          {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
+
           <TextInput
             label="Severity (1-10) (Required)"
             value={newSymptom.severity}
             onChangeText={text => {
               const value = parseInt(text);
               if (!isNaN(value) && value >= 1 && value <= 10) {
-                setNewSymptom({...newSymptom, severity: text});
+                setNewSymptom({ ...newSymptom, severity: text });
               } else if (text === '') {
-                setNewSymptom({...newSymptom, severity: ''});
+                setNewSymptom({ ...newSymptom, severity: '' });
               }
             }}
             keyboardType="numeric"
@@ -208,17 +209,23 @@ function SymptomScreen() {
             disabled={isLoading}
             error={!newSymptom.severity}
           />
+
           <TextInput
             label="Details (Required)"
             value={newSymptom.notes}
-            onChangeText={text => setNewSymptom({...newSymptom, notes: text})}
+            onChangeText={text => {
+              setNewSymptom({ ...newSymptom, notes: text });
+              if (notesError) setNotesError('');
+            }}
             multiline
             style={styles.input}
             disabled={isLoading}
-            error={!newSymptom.notes.trim()}
+            error={!!notesError}
           />
-          <Button 
-            mode="contained" 
+          {notesError ? <Text style={styles.errorText}>{notesError}</Text> : null}
+
+          <Button
+            mode="contained"
             onPress={addSymptom}
             loading={isLoading}
             disabled={isLoading || !newSymptom.name.trim() || !newSymptom.severity || !newSymptom.notes.trim()}
@@ -269,7 +276,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   input: {
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+  errorText: {
+    color: 'red',
+    marginBottom: 8,
+    fontSize: 12,
   },
   loadingContainer: {
     padding: 16,
