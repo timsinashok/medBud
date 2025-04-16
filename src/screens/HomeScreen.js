@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
-import { Card, Title, Paragraph, Searchbar, ActivityIndicator, Snackbar } from 'react-native-paper';
+import { View, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
+import { Card, Title, Paragraph, Searchbar, ActivityIndicator, Snackbar, Button, Text } from 'react-native-paper';
 import { api } from '../services/api';
 import { theme } from '../theme/theme';
+import { DatePickerModal } from 'react-native-paper-dates';
 
 // Temporary user ID - In a real app, this would come from authentication
 const USER_ID = '67ebd559c9003543caba959c';
@@ -16,37 +17,85 @@ function HomeScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [searchError, setSearchError] = useState(null);
+  const [searchPerformed, setSearchPerformed] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
 
-  useEffect(() => {
+  const performSearch = () => {
     try {
-      if (!searchQuery || !allSymptoms) {
+      setSearchPerformed(true);
+      setSearchError(null);
+      
+      // Check if user has provided any search criteria
+      const hasSearchQuery = searchQuery && searchQuery.trim().length > 0;
+      const hasDateRange = startDate !== null || endDate !== null;
+      
+      if (!hasSearchQuery && !hasDateRange) {
+        setSearchError("Please enter search text or select a date range");
         setFilteredSymptoms([]);
         return;
       }
       
-      const searchLower = searchQuery.toLowerCase().trim();
-      if (!searchLower) {
+      if (!allSymptoms || !Array.isArray(allSymptoms)) {
         setFilteredSymptoms([]);
         return;
       }
 
+      const searchLower = (searchQuery || '').toLowerCase().trim();
+      
       const filtered = allSymptoms.filter(symptom => {
         if (!symptom || typeof symptom !== 'object') return false;
-        const name = symptom.name?.toLowerCase() || '';
-        const details = symptom.details?.toLowerCase() || '';
-        return name.includes(searchLower) || details.includes(searchLower);
+        
+        // Date filtering
+        if (hasDateRange) {
+          const symptomDate = symptom.timestamp ? new Date(symptom.timestamp) : null;
+          
+          // Skip items without valid timestamps if date filtering is active
+          if (!symptomDate) return false;
+          
+          // Filter by start date if set
+          if (startDate && symptomDate < startDate) return false;
+          
+          // Filter by end date if set (end of the day for inclusive range)
+          if (endDate) {
+            const endOfDay = new Date(endDate);
+            endOfDay.setHours(23, 59, 59, 999);
+            if (symptomDate > endOfDay) return false;
+          }
+        }
+        
+        // Text search if search query exists
+        if (hasSearchQuery) {
+          const name = symptom.name?.toLowerCase() || '';
+          const details = symptom.details?.toLowerCase() || '';
+          if (!name.includes(searchLower) && !details.includes(searchLower)) {
+            return false;
+          }
+        }
+        
+        return true;
       });
       
-      setFilteredSymptoms(filtered);
+      // Sort results by most recent first (chronological order)
+      const sortedResults = [...filtered].sort((a, b) => {
+        const dateA = a.timestamp ? new Date(a.timestamp) : new Date(0);
+        const dateB = b.timestamp ? new Date(b.timestamp) : new Date(0);
+        return dateB - dateA; // Descending order (newest first)
+      });
+      
+      setFilteredSymptoms(sortedResults);
     } catch (error) {
       console.error('Error filtering symptoms:', error);
       setFilteredSymptoms([]);
+      setSearchError("An error occurred while searching");
     }
-  }, [searchQuery, allSymptoms]);
+  };
 
   const loadData = async (refresh = false) => {
     try {
@@ -89,6 +138,31 @@ function HomeScreen() {
     loadData(true);
   };
 
+  const onDismissDatePicker = () => {
+    setDatePickerVisible(false);
+  };
+
+  const onConfirmDatePicker = (params) => {
+    setDatePickerVisible(false);
+    setStartDate(params.startDate);
+    setEndDate(params.endDate);
+  };
+
+  const getSeverityColor = (severity) => {
+    if (!severity) return '#9e9e9e'; // Gray for N/A
+    const numSeverity = parseInt(severity, 10);
+    if (isNaN(numSeverity)) return '#9e9e9e';
+    
+    if (numSeverity <= 3) return '#4CAF50'; // Green for mild
+    if (numSeverity <= 6) return '#FF9800'; // Orange for moderate
+    return '#F44336'; // Red for severe
+  };
+
+  const formatDate = (date) => {
+    if (!date) return 'Not set';
+    return date.toLocaleDateString();
+  };
+
   if (isLoading && !isRefreshing && !recentSymptoms.length) {
     return (
       <View style={styles.loadingContainer}>
@@ -107,28 +181,90 @@ function HomeScreen() {
         />
       }
     >
-      <Searchbar
-        placeholder="Search symptoms by name or details..."
-        onChangeText={setSearchQuery}
-        value={searchQuery}
-        style={styles.searchBar}
-        iconColor={theme.colors.primary}
-      />
+      <View style={styles.searchContainer}>
+        <Searchbar
+          placeholder="Search symptoms by name or details..."
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          style={styles.searchBar}
+          iconColor={theme.colors.primary}
+        />
+        
+        <View style={styles.dateFilterContainer}>
+          <TouchableOpacity 
+            onPress={() => setDatePickerVisible(true)}
+            style={styles.dateFilterButton}
+          >
+            <View style={styles.dateFilterContent}>
+              <Text style={styles.dateFilterLabel}>Date: </Text>
+              <Text style={styles.dateFilterText} numberOfLines={1}>
+                {startDate && endDate 
+                  ? `${formatDate(startDate)} - ${formatDate(endDate)}`
+                  : "Filter by date"}
+              </Text>
+            </View>
+          </TouchableOpacity>
+          
+          {(startDate || endDate) && (
+            <TouchableOpacity 
+              onPress={() => {
+                setStartDate(null);
+                setEndDate(null);
+              }}
+              style={styles.clearDateButton}
+            >
+              <Text style={styles.clearDateText}>Clear</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        
+        <Button 
+          mode="contained" 
+          style={styles.searchButton}
+          onPress={performSearch}
+        >
+          Search
+        </Button>
+        
+        {searchError && (
+          <Text style={styles.errorText}>{searchError}</Text>
+        )}
+      </View>
 
-      {filteredSymptoms.length > 0 && (
+      {searchPerformed && (
         <Card style={styles.card}>
           <Card.Content>
-            <Title>Search Results</Title>
-            {filteredSymptoms.map(symptom => (
-              <View key={symptom._id} style={styles.searchResult}>
-                <Title style={styles.symptomName}>{symptom.name || 'Unnamed Symptom'}</Title>
-                <Paragraph>Severity: {symptom.severity || 'N/A'}/10</Paragraph>
-                <Paragraph>Date: {symptom.timestamp ? new Date(symptom.timestamp).toLocaleDateString() : 'N/A'}</Paragraph>
-                {symptom.details && (
-                  <Paragraph style={styles.details}>Details: {symptom.details}</Paragraph>
-                )}
-              </View>
-            ))}
+            <View style={styles.searchResultsHeader}>
+              <Title>Search Results</Title>
+              {filteredSymptoms.length > 0 && (
+                <Text style={styles.resultCount}>{filteredSymptoms.length} result{filteredSymptoms.length !== 1 ? 's' : ''}</Text>
+              )}
+            </View>
+            
+            {filteredSymptoms.length > 0 ? (
+              filteredSymptoms.map(symptom => (
+                <View key={symptom._id} style={styles.searchResult}>
+                  <View style={styles.resultHeader}>
+                    <Title style={styles.symptomName}>{symptom.name || 'Unnamed Symptom'}</Title>
+                    <View style={[styles.severityPill, {
+                      backgroundColor: getSeverityColor(symptom.severity)
+                    }]}>
+                      <Text style={styles.severityText}>
+                        {symptom.severity || 'N/A'}/10
+                      </Text>
+                    </View>
+                  </View>
+                  <Paragraph style={styles.dateText}>
+                    {symptom.timestamp ? new Date(symptom.timestamp).toLocaleDateString() : 'N/A'}
+                  </Paragraph>
+                  {symptom.details && (
+                    <Paragraph style={styles.details}>{symptom.details}</Paragraph>
+                  )}
+                </View>
+              ))
+            ) : (
+              <Paragraph style={styles.noDataMessage}>No symptom data found</Paragraph>
+            )}
           </Card.Content>
         </Card>
       )}
@@ -146,16 +282,26 @@ function HomeScreen() {
           {recentSymptoms.length > 0 ? (
             recentSymptoms.map(symptom => (
               <View key={symptom._id} style={styles.symptomItem}>
-                <Title style={styles.symptomName}>{symptom.name || 'Unnamed Symptom'}</Title>
-                <Paragraph>Severity: {symptom.severity || 'N/A'}/10</Paragraph>
-                <Paragraph>Date: {symptom.timestamp ? new Date(symptom.timestamp).toLocaleDateString() : 'N/A'}</Paragraph>
+                <View style={styles.resultHeader}>
+                  <Title style={styles.symptomName}>{symptom.name || 'Unnamed Symptom'}</Title>
+                  <View style={[styles.severityPill, {
+                    backgroundColor: getSeverityColor(symptom.severity)
+                  }]}>
+                    <Text style={styles.severityText}>
+                      {symptom.severity || 'N/A'}/10
+                    </Text>
+                  </View>
+                </View>
+                <Paragraph style={styles.dateText}>
+                  {symptom.timestamp ? new Date(symptom.timestamp).toLocaleDateString() : 'N/A'}
+                </Paragraph>
                 {symptom.details && (
-                  <Paragraph style={styles.details}>Details: {symptom.details}</Paragraph>
+                  <Paragraph style={styles.details}>{symptom.details}</Paragraph>
                 )}
               </View>
             ))
           ) : (
-            <Paragraph>No symptoms recorded yet</Paragraph>
+            <Paragraph style={styles.noDataMessage}>No symptoms recorded yet</Paragraph>
           )}
         </Card.Content>
       </Card>
@@ -173,10 +319,20 @@ function HomeScreen() {
               </View>
             ))
           ) : (
-            <Paragraph>No medications added yet</Paragraph>
+            <Paragraph style={styles.noDataMessage}>No medications added yet</Paragraph>
           )}
         </Card.Content>
       </Card>
+
+      <DatePickerModal
+        locale="en"
+        mode="range"
+        visible={datePickerVisible}
+        onDismiss={onDismissDatePicker}
+        startDate={startDate}
+        endDate={endDate}
+        onConfirm={onConfirmDatePicker}
+      />
 
       <Snackbar
         visible={!!error}
@@ -201,9 +357,59 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 16,
   },
-  searchBar: {
+  searchContainer: {
     marginBottom: 16,
+  },
+  searchBar: {
+    marginBottom: 8,
     elevation: 4,
+  },
+  dateFilterContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  dateFilterButton: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 4,
+    padding: 10,
+    elevation: 2,
+    flex: 1,
+  },
+  dateFilterContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dateFilterLabel: {
+    fontWeight: 'bold',
+    marginRight: 4,
+    color: theme.colors.primary,
+  },
+  dateFilterText: {
+    flex: 1,
+    color: '#555',
+  },
+  clearDateButton: {
+    marginLeft: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#e8e8e8',
+    borderRadius: 4,
+  },
+  clearDateText: {
+    color: theme.colors.error || '#f44336',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  searchButton: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  errorText: {
+    color: theme.colors.error || '#f44336',
+    fontSize: 12,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   loadingContainer: {
     flex: 1,
@@ -216,6 +422,43 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+  },
+  searchResultsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    paddingBottom: 6,
+  },
+  resultCount: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  resultHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  severityPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    minWidth: 45,
+    alignItems: 'center',
+  },
+  severityText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  dateText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+    marginBottom: 4,
   },
   symptomItem: {
     marginBottom: 12,
@@ -242,6 +485,12 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
+  noDataMessage: {
+    fontStyle: 'italic',
+    color: '#666',
+    marginTop: 10,
+    marginBottom: 5,
+  },
 });
 
-export default HomeScreen; 
+export default HomeScreen;
