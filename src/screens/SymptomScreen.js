@@ -6,6 +6,11 @@ import { api } from '../services/api';
 // Temporary user ID - In a real app, this would come from authentication
 const USER_ID = '67ebd559c9003543caba959c';
 
+// Constants for validation
+const MAX_SYMPTOM_NAME_WORDS = 100;
+const MAX_DETAILS_WORDS = 500;
+const MAX_RECENT_SYMPTOMS = 10;
+
 function SymptomScreen() {
   const [symptoms, setSymptoms] = useState([]);
   const [newSymptom, setNewSymptom] = useState({
@@ -24,6 +29,32 @@ function SymptomScreen() {
     loadSymptoms();
   }, []);
 
+  const formatDateTime = (timestamp) => {
+    if (!timestamp) return 'N/A';
+    
+    // Create Date object from timestamp
+    const date = new Date(timestamp);
+    
+    // Format date and time in Gulf Standard Time (UTC+4)
+    const options = {
+      timeZone: 'Asia/Dubai', // Dubai uses Gulf Standard Time (UTC+4)
+      year: 'numeric',
+      month: 'numeric', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    };
+    
+    try {
+      return new Intl.DateTimeFormat('en-US', options).format(date) + ' GST';
+    } catch (error) {
+      // Fallback in case timeZone is not supported
+      console.error('Error formatting date with timezone:', error);
+      return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (Local)`;
+    }
+  };
+
   const loadSymptoms = async (refresh = false) => {
     try {
       if (refresh) {
@@ -37,13 +68,17 @@ function SymptomScreen() {
       const currentSkip = refresh ? 0 : skip;
       const symptomsData = await api.getSymptoms(USER_ID, currentSkip, limit);
 
+      // Sort symptoms by timestamp and limit to most recent 10
+      const sortedSymptoms = symptomsData.sort((a, b) => 
+        new Date(b.timestamp) - new Date(a.timestamp)
+      ).slice(0, MAX_RECENT_SYMPTOMS);
+
       if (refresh) {
-        setSymptoms(symptomsData);
+        setSymptoms(sortedSymptoms);
       } else {
-        setSymptoms(prev => [...prev, ...symptomsData]);
+        setSymptoms(prev => [...prev, ...sortedSymptoms]);
       }
 
-      // Update pagination state
       setHasMore(symptomsData.length === limit);
       if (!refresh) {
         setSkip(currentSkip + symptomsData.length);
@@ -57,26 +92,45 @@ function SymptomScreen() {
     }
   };
 
-  const onRefresh = () => {
-    loadSymptoms(true);
-  };
-
-  const loadMore = () => {
-    if (!isLoading && hasMore) {
-      loadSymptoms();
+  const validateSymptom = () => {
+    if (!newSymptom.name.trim()) {
+      setError('Symptom name is required');
+      return false;
     }
+    if (!newSymptom.severity) {
+      setError('Severity is required');
+      return false;
+    }
+    if (!newSymptom.notes.trim()) {
+      setError('Details are required');
+      return false;
+    }
+
+    const nameWordCount = newSymptom.name.trim().split(/\s+/).length;
+    if (nameWordCount > MAX_SYMPTOM_NAME_WORDS) {
+      setError(`Symptom name cannot exceed ${MAX_SYMPTOM_NAME_WORDS} words`);
+      return false;
+    }
+
+    const detailsWordCount = newSymptom.notes.trim().split(/\s+/).length;
+    if (detailsWordCount > MAX_DETAILS_WORDS) {
+      setError(`Details cannot exceed ${MAX_DETAILS_WORDS} words`);
+      return false;
+    }
+
+    return true;
   };
 
   const addSymptom = async () => {
-    if (!newSymptom.name || !newSymptom.severity) return;
+    if (!validateSymptom()) return;
 
     try {
       setIsLoading(true);
       setError(null);
 
       const symptomData = {
-        name: newSymptom.name,
-        details: newSymptom.notes || '',
+        name: newSymptom.name.trim(),
+        details: newSymptom.notes.trim(),
         severity: parseInt(newSymptom.severity)
       };
 
@@ -93,6 +147,16 @@ function SymptomScreen() {
       setError('Failed to add symptom. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const onRefresh = () => {
+    loadSymptoms(true);
+  };
+
+  const loadMore = () => {
+    if (!isLoading && hasMore) {
+      loadSymptoms();
     }
   };
 
@@ -121,14 +185,15 @@ function SymptomScreen() {
         <Card.Content>
           <Title>Log New Symptom</Title>
           <TextInput
-            label="Symptom Name"
+            label="Symptom Name (Required)"
             value={newSymptom.name}
             onChangeText={text => setNewSymptom({...newSymptom, name: text})}
             style={styles.input}
             disabled={isLoading}
+            error={!newSymptom.name.trim()}
           />
           <TextInput
-            label="Severity (1-10)"
+            label="Severity (1-10) (Required)"
             value={newSymptom.severity}
             onChangeText={text => {
               const value = parseInt(text);
@@ -141,20 +206,22 @@ function SymptomScreen() {
             keyboardType="numeric"
             style={styles.input}
             disabled={isLoading}
+            error={!newSymptom.severity}
           />
           <TextInput
-            label="Details"
+            label="Details (Required)"
             value={newSymptom.notes}
             onChangeText={text => setNewSymptom({...newSymptom, notes: text})}
             multiline
             style={styles.input}
             disabled={isLoading}
+            error={!newSymptom.notes.trim()}
           />
           <Button 
             mode="contained" 
             onPress={addSymptom}
             loading={isLoading}
-            disabled={isLoading || !newSymptom.name || !newSymptom.severity}
+            disabled={isLoading || !newSymptom.name.trim() || !newSymptom.severity || !newSymptom.notes.trim()}
           >
             Add Symptom
           </Button>
@@ -166,7 +233,7 @@ function SymptomScreen() {
           <Card.Content>
             <Title>{symptom.name}</Title>
             <Paragraph>Severity: {symptom.severity}/10</Paragraph>
-            <Paragraph>Date: {new Date(symptom.timestamp).toLocaleDateString()}</Paragraph>
+            <Paragraph>Date: {formatDateTime(symptom.timestamp)}</Paragraph>
             {symptom.details && <Paragraph>Details: {symptom.details}</Paragraph>}
           </Card.Content>
         </Card>
@@ -210,4 +277,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SymptomScreen; 
+export default SymptomScreen;
