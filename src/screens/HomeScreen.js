@@ -5,6 +5,7 @@ import {
   Snackbar, Button, Text, Chip, Surface, Divider 
 } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from 'react-native-paper-dates';
 import { api } from '../services/api';
@@ -16,6 +17,7 @@ const USER_ID = '67ebd559c9003543caba959c';
 
 function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
   
   const [recentSymptoms, setRecentSymptoms] = useState([]);
   const [medications, setMedications] = useState([]);
@@ -32,8 +34,10 @@ function HomeScreen({ navigation }) {
   const [searchPerformed, setSearchPerformed] = useState(false);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isFocused) {
+      loadData();
+    }
+  }, [isFocused]);
 
   const performSearch = useCallback(() => {
     try {
@@ -176,9 +180,24 @@ function HomeScreen({ navigation }) {
     return theme.severityColors.high;
   };
 
-  const formatDate = (date) => {
-    if (!date) return 'Not set';
-    return date.toLocaleDateString();
+  const formatDateTime = (timestamp) => {
+    if (!timestamp) return 'N/A';
+    const date = new Date(timestamp);
+    const options = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    };
+
+    try {
+      return new Intl.DateTimeFormat('en-US', options).format(date);
+    } catch (error) {
+      console.error('Error formatting date with timezone:', error);
+      return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
   };
 
   const resetSearch = useCallback(() => {
@@ -247,7 +266,7 @@ function HomeScreen({ navigation }) {
               <Ionicons name="calendar-outline" size={18} color={theme.colors.primary} />
               <Text style={styles.dateFilterText} numberOfLines={1}>
                 {startDate && endDate 
-                  ? `${formatDate(startDate)} - ${formatDate(endDate)}`
+                  ? `${formatDateTime(startDate)} - ${formatDateTime(endDate)}`
                   : "Filter by date range"}
               </Text>
             </TouchableOpacity>
@@ -319,7 +338,7 @@ function HomeScreen({ navigation }) {
                       </View>
                     </View>
                     <Paragraph style={styles.dateText}>
-                      {symptom.timestamp ? new Date(symptom.timestamp).toLocaleDateString() : 'N/A'}
+                      {symptom.timestamp ? formatDateTime(symptom.timestamp) : 'N/A'}
                     </Paragraph>
                     {symptom.details && (
                       <Paragraph style={styles.details}>{symptom.details}</Paragraph>
@@ -360,7 +379,7 @@ function HomeScreen({ navigation }) {
                     </View>
                   </View>
                   <Paragraph style={styles.dateText}>
-                    {symptom.timestamp ? new Date(symptom.timestamp).toLocaleDateString() : 'N/A'}
+                    {symptom.timestamp ? formatDateTime(symptom.timestamp) : 'N/A'}
                   </Paragraph>
                   {symptom.details && (
                     <Paragraph style={styles.details}>{symptom.details}</Paragraph>

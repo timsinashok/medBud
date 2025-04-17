@@ -263,10 +263,9 @@ function MedicationScreen() {
       </ScrollView>
 
       <FAB
-        icon="plus"
+        icon={props => <Ionicons name="add" size={24} color="#fff" {...props} />}
         style={[styles.fab, {bottom: insets.bottom + 16}]}
         onPress={() => setShowAddDialog(true)}
-        color="#fff"
       />
 
       {/* Add Medication Dialog */}

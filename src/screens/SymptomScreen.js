@@ -42,7 +42,7 @@ function SymptomScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const limit = 20; // Number of items per page
-  
+
   // Load symptoms and pending symptoms on mount
   useEffect(() => {
     loadSymptoms();
@@ -282,11 +282,11 @@ function SymptomScreen() {
       if (isOnline) {
         // If online, try to send to server
         try {
-          await api.createSymptom(symptomData, USER_ID);
-          
+      await api.createSymptom(symptomData, USER_ID);
+      
           // Refresh symptom list
-          setSkip(0);
-          await loadSymptoms(true);
+      setSkip(0);
+      await loadSymptoms(true);
         } catch (error) {
           console.error('Error adding symptom:', error);
           
@@ -427,23 +427,23 @@ function SymptomScreen() {
         </Pressable>
       )}
 
-      <ScrollView
+    <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
-        refreshControl={
-          <RefreshControl 
-            refreshing={isRefreshing} 
-            onRefresh={onRefresh}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={onRefresh}
             colors={[theme.colors.primary]}
-          />
+        />
+      }
+      onScroll={({ nativeEvent }) => {
+        if (isCloseToBottom(nativeEvent)) {
+          loadMore();
         }
-        onScroll={({ nativeEvent }) => {
-          if (isCloseToBottom(nativeEvent)) {
-            loadMore();
-          }
-        }}
-        scrollEventThrottle={400}
-      >
+      }}
+      scrollEventThrottle={400}
+    >
         {symptoms.length === 0 ? (
           <View style={styles.emptyStateContainer}>
             <Ionicons name="medical-outline" size={64} color={theme.colors.disabled} />
@@ -482,7 +482,7 @@ function SymptomScreen() {
                       <Ionicons name="time-outline" size={12} color="#fff" />
                     </Badge>
                   )}
-                  <Card.Content>
+        <Card.Content>
                     <View style={styles.symptomHeader}>
                       <Title style={styles.symptomName}>{symptom.name}</Title>
                       <Chip 
@@ -567,9 +567,9 @@ function SymptomScreen() {
           <Dialog.ScrollArea style={styles.dialogScrollArea}>
             <ScrollView>
               <View style={styles.dialogContent}>
-                <TextInput
-                  label="Symptom Name"
-                  value={newSymptom.name}
+          <TextInput
+            label="Symptom Name"
+            value={newSymptom.name}
                   onChangeText={text => {
                     setNewSymptom({...newSymptom, name: text});
                     if (inputErrors.name) {
@@ -578,20 +578,20 @@ function SymptomScreen() {
                       setInputErrors(newErrors);
                     }
                   }}
-                  style={styles.input}
+            style={styles.input}
                   error={!!inputErrors.name}
-                  disabled={isLoading}
+            disabled={isLoading}
                   mode="outlined"
                   placeholder="e.g. Headache, Fever, Cough"
-                />
+          />
                 {inputErrors.name && <Text style={styles.errorText}>{inputErrors.name}</Text>}
 
                 {renderSeveritySelector()}
 
-                <TextInput
+          <TextInput
                   label="Symptom Details"
                   value={newSymptom.notes}
-                  onChangeText={text => {
+            onChangeText={text => {
                     setNewSymptom({...newSymptom, notes: text});
                     if (inputErrors.notes) {
                       const newErrors = {...inputErrors};
@@ -599,11 +599,11 @@ function SymptomScreen() {
                       setInputErrors(newErrors);
                     }
                   }}
-                  style={styles.input}
+            style={styles.input}
                   error={!!inputErrors.notes}
-                  multiline
+            multiline
                   numberOfLines={4}
-                  disabled={isLoading}
+            disabled={isLoading}
                   mode="outlined"
                   placeholder="Describe your symptoms in detail"
                 />
@@ -621,14 +621,14 @@ function SymptomScreen() {
             >
               Cancel
             </Button>
-            <Button 
-              onPress={addSymptom}
-              loading={isLoading}
+          <Button 
+            onPress={addSymptom}
+            loading={isLoading}
               disabled={isLoading}
               mode="contained"
-            >
+          >
               {isOnline ? 'Save Symptom' : 'Save Offline'}
-            </Button>
+          </Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -909,4 +909,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export default SymptomScreen;
+export default SymptomScreen; 
