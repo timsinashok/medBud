@@ -93,3 +93,15 @@ class UserResponse(BaseModel):
     id: str
     username: str
     email: EmailStr
+
+class User(BaseModel):
+    username: str
+    email: Optional[str] = None
+    disabled: Optional[bool] = False
+
+class UserInDB(User):
+    hashed_password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
