@@ -12,3 +12,10 @@ web-build/
 .DS_Store
 gold.sh
 code.txt
+
+env/
+
+/__pycahce__
+__pycahce__/
+/*/*/__pycahce__
+__pycache__/

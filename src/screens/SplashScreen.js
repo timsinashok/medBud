@@ -31,7 +31,7 @@ function SplashScreen({ navigation }) {
       <Animated.View entering={FadeInDown.duration(600).delay(800)}>
         <Button
           mode="contained"
-          onPress={() => navigation.replace('MainApp')}
+          onPress={() => navigation.navigate('Auth')}
           style={styles.button}
           contentStyle={styles.buttonContent}
           labelStyle={styles.buttonLabel}

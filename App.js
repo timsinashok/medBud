@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { NavigationContainer, DefaultTheme as NavigationDefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -13,6 +13,11 @@ import HomeScreen from './src/screens/HomeScreen';
 import SymptomScreen from './src/screens/SymptomScreen';
 import MedicationScreen from './src/screens/MedicationScreen';
 import ReportScreen from './src/screens/ReportScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import RegisterScreen from './src/screens/RegisterScreen';
+
+// Services
+import { getCurrentUser } from './src/services/authService';
 
 // Theme
 import { theme } from './src/theme/theme';
@@ -32,7 +37,6 @@ const navigationTheme = {
     border: theme.colors.divider,
     notification: theme.colors.notification,
   },
-  // This is crucial for fixing the typography errors
   fonts: {
     regular: {
       fontFamily: 'System',
@@ -80,7 +84,6 @@ function MainApp() {
         },
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.disabled,
-        // Use direct styling instead of theme references for navigation components
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '500',
@@ -147,7 +150,39 @@ function MainApp() {
   );
 }
 
+// Auth Stack
+function AuthStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="Register" component={RegisterScreen} />
+    </Stack.Navigator>
+  );
+}
+
 export default function App() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const user = await getCurrentUser();
+      setIsAuthenticated(!!user);
+    } catch (error) {
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return <SplashScreen />;
+  }
+
   return (
     <PaperProvider theme={theme}>
       <SafeAreaProvider>
@@ -160,6 +195,7 @@ export default function App() {
             }}
           >
             <Stack.Screen name="Splash" component={SplashScreen} />
+            <Stack.Screen name="Auth" component={AuthStack} />
             <Stack.Screen name="MainApp" component={MainApp} />
           </Stack.Navigator>
         </NavigationContainer>
