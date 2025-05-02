@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, Alert, View } from 'react-native';
+import { ScrollView, StyleSheet, Alert, View, Pressable, Platform } from 'react-native';
 import { 
   TextInput, Button, Card, Title, Paragraph, IconButton, 
   Snackbar, Portal, Dialog, ActivityIndicator, FAB,
@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../services/api';
 import { theme } from '../theme/theme';
 import Animated, { FadeIn, SlideInRight } from 'react-native-reanimated';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 // Temporary user ID - In a real app, this would come from authentication
 const USER_ID = '67ebd559c9003543caba959c';
@@ -20,8 +21,8 @@ function MedicationScreen() {
   const [medications, setMedications] = useState([]);
   const [newMedication, setNewMedication] = useState({
     name: '',
-    dosage: '',
-    frequency: '',
+    frequency: 1,
+    times: [''],
     notes: ''
   });
   const [editingMedication, setEditingMedication] = useState(null);
@@ -30,6 +31,7 @@ function MedicationScreen() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [inputErrors, setInputErrors] = useState({});
+  const [showTimePicker, setShowTimePicker] = useState(null);
 
   useEffect(() => {
     loadMedications();
@@ -55,8 +57,12 @@ function MedicationScreen() {
       errors.name = 'Medication name is required';
     }
     
-    if (!medication.dosage.trim()) {
-      errors.dosage = 'Dosage is required';
+    if (medication.frequency < 1 || medication.frequency > 5) {
+      errors.frequency = 'Frequency must be between 1 and 5';
+    }
+
+    if (medication.times.some(time => !time.trim())) {
+      errors.times = 'All reminder times are required';
     }
     
     return errors;
@@ -78,14 +84,14 @@ function MedicationScreen() {
       const medicationData = {
         user_id: USER_ID,
         name: newMedication.name.trim(),
-        dosage: newMedication.dosage.trim(),
-        frequency: newMedication.frequency.trim() || '',
+        frequency: newMedication.frequency,
+        times: newMedication.times.map(time => time.trim()),
         notes: newMedication.notes.trim() || ''
       };
 
       await api.createMedication(medicationData);
       await loadMedications();
-      setNewMedication({ name: '', dosage: '', frequency: '', notes: '' });
+      setNewMedication({ name: '', frequency: 1, times: [''], notes: '' });
       setShowAddDialog(false);
     } catch (error) {
       console.error('Error adding medication:', error);
@@ -99,8 +105,8 @@ function MedicationScreen() {
     setEditingMedication({
       _id: medication._id,
       name: medication.name || '',
-      dosage: medication.dosage || '',
-      frequency: medication.frequency || '',
+      frequency: medication.frequency || 1,
+      times: medication.times || [''],
       notes: medication.notes || ''
     });
     setShowEditDialog(true);
@@ -122,8 +128,8 @@ function MedicationScreen() {
 
       const medicationData = {
         name: editingMedication.name.trim(),
-        dosage: editingMedication.dosage.trim(),
-        frequency: editingMedication.frequency.trim() || '',
+        frequency: editingMedication.frequency,
+        times: editingMedication.times.map(time => time.trim()),
         notes: editingMedication.notes.trim() || ''
       };
 
@@ -166,6 +172,55 @@ function MedicationScreen() {
           },
         },
       ]
+    );
+  };
+
+  const renderTimeInputs = (medication, isEditing = false) => {
+    const times = isEditing ? editingMedication.times : newMedication.times;
+    const setTimes = (newTimes) => {
+      if (isEditing) {
+        setEditingMedication({...editingMedication, times: newTimes});
+      } else {
+        setNewMedication({...newMedication, times: newTimes});
+      }
+    };
+
+    const handleTimeChange = (index, event, selectedTime) => {
+      setShowTimePicker(null);
+      if (selectedTime) {
+        const newTimes = [...times];
+        const hours = selectedTime.getHours().toString().padStart(2, '0');
+        const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
+        newTimes[index] = `${hours}:${minutes}`;
+        setTimes(newTimes);
+      }
+    };
+
+    return (
+      <View style={styles.timeInputsContainer}>
+        <Text style={styles.timeInputsLabel}>Reminder Times</Text>
+        {Array.from({ length: medication.frequency }).map((_, index) => (
+          <View key={index} style={styles.timeInputRow}>
+            <Text style={styles.timeLabel}>Time {index + 1}</Text>
+            <Pressable
+              style={styles.timeInput}
+              onPress={() => setShowTimePicker(index)}
+            >
+              <Text style={styles.timeText}>{times[index] || 'Select time'}</Text>
+            </Pressable>
+            {showTimePicker === index && (
+              <DateTimePicker
+                value={times[index] ? new Date(`2000-01-01T${times[index]}`) : new Date()}
+                mode="time"
+                display="spinner"
+                onChange={(event, selectedTime) => handleTimeChange(index, event, selectedTime)}
+                style={styles.timePicker}
+              />
+            )}
+          </View>
+        ))}
+        {inputErrors.times && <Text style={styles.errorText}>{inputErrors.times}</Text>}
+      </View>
     );
   };
 
@@ -236,15 +291,18 @@ function MedicationScreen() {
                     
                     <View style={styles.medInfoRow}>
                       <Ionicons name="fitness-outline" size={20} color={theme.colors.primary} />
-                      <Text style={styles.medInfoLabel}>Dosage:</Text>
-                      <Text style={styles.medInfoValue}>{medication.dosage}</Text>
+                      <Text style={styles.medInfoLabel}>Frequency:</Text>
+                      <Text style={styles.medInfoValue}>{medication.frequency || 1} times per day</Text>
                     </View>
                     
-                    {medication.frequency && (
-                      <View style={styles.medInfoRow}>
-                        <Ionicons name="time-outline" size={20} color={theme.colors.primary} />
-                        <Text style={styles.medInfoLabel}>Frequency:</Text>
-                        <Text style={styles.medInfoValue}>{medication.frequency}</Text>
+                    {medication.times && medication.times.length > 0 && (
+                      <View style={styles.timeInputsContainer}>
+                        <Text style={styles.timeInputsLabel}>Reminder Times:</Text>
+                        {medication.times.map((time, index) => (
+                          <View key={index} style={styles.timeInputRow}>
+                            <Text style={styles.timeInput}>{time}</Text>
+                          </View>
+                        ))}
                       </View>
                     )}
                     
@@ -298,34 +356,40 @@ function MedicationScreen() {
             />
             {inputErrors.name && <Text style={styles.errorText}>{inputErrors.name}</Text>}
             
-            <TextInput
-              label="Dosage"
-              value={newMedication.dosage}
-              onChangeText={text => {
-                setNewMedication({...newMedication, dosage: text});
-                if (inputErrors.dosage) {
-                  const newErrors = {...inputErrors};
-                  delete newErrors.dosage;
-                  setInputErrors(newErrors);
-                }
-              }}
-              style={styles.input}
-              error={!!inputErrors.dosage}
-              disabled={isLoading}
-              mode="outlined"
-              placeholder="e.g. 50mg, 1 tablet"
-            />
-            {inputErrors.dosage && <Text style={styles.errorText}>{inputErrors.dosage}</Text>}
-            
-            <TextInput
-              label="Frequency"
-              value={newMedication.frequency}
-              onChangeText={text => setNewMedication({...newMedication, frequency: text})}
-              style={styles.input}
-              disabled={isLoading}
-              mode="outlined"
-              placeholder="e.g. Once daily, Every 8 hours"
-            />
+            <View style={styles.frequencyContainer}>
+              <Text style={styles.frequencyLabel}>Frequency (1-5 times per day)</Text>
+              <View style={styles.frequencyScale}>
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <Pressable
+                    key={value}
+                    style={[
+                      styles.frequencyButton,
+                      newMedication.frequency === value && styles.selectedFrequency,
+                    ]}
+                    onPress={() => {
+                      setNewMedication({...newMedication, frequency: value});
+                      if (inputErrors.frequency) {
+                        const newErrors = {...inputErrors};
+                        delete newErrors.frequency;
+                        setInputErrors(newErrors);
+                      }
+                    }}
+                  >
+                    <Text 
+                      style={[
+                        styles.frequencyButtonText,
+                        newMedication.frequency === value && styles.selectedFrequencyText
+                      ]}
+                    >
+                      {value}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              {inputErrors.frequency && <Text style={styles.errorText}>{inputErrors.frequency}</Text>}
+            </View>
+
+            {renderTimeInputs(newMedication)}
             
             <TextInput
               label="Notes"
@@ -391,32 +455,40 @@ function MedicationScreen() {
             />
             {inputErrors.name && <Text style={styles.errorText}>{inputErrors.name}</Text>}
             
-            <TextInput
-              label="Dosage"
-              value={editingMedication?.dosage || ''}
-              onChangeText={text => {
-                setEditingMedication({...editingMedication, dosage: text});
-                if (inputErrors.dosage) {
-                  const newErrors = {...inputErrors};
-                  delete newErrors.dosage;
-                  setInputErrors(newErrors);
-                }
-              }}
-              style={styles.input}
-              error={!!inputErrors.dosage}
-              disabled={isLoading}
-              mode="outlined"
-            />
-            {inputErrors.dosage && <Text style={styles.errorText}>{inputErrors.dosage}</Text>}
-            
-            <TextInput
-              label="Frequency"
-              value={editingMedication?.frequency || ''}
-              onChangeText={text => setEditingMedication({...editingMedication, frequency: text})}
-              style={styles.input}
-              disabled={isLoading}
-              mode="outlined"
-            />
+            <View style={styles.frequencyContainer}>
+              <Text style={styles.frequencyLabel}>Frequency (1-5 times per day)</Text>
+              <View style={styles.frequencyScale}>
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <Pressable
+                    key={value}
+                    style={[
+                      styles.frequencyButton,
+                      editingMedication?.frequency === value && styles.selectedFrequency,
+                    ]}
+                    onPress={() => {
+                      setEditingMedication({...editingMedication, frequency: value});
+                      if (inputErrors.frequency) {
+                        const newErrors = {...inputErrors};
+                        delete newErrors.frequency;
+                        setInputErrors(newErrors);
+                      }
+                    }}
+                  >
+                    <Text 
+                      style={[
+                        styles.frequencyButtonText,
+                        editingMedication?.frequency === value && styles.selectedFrequencyText
+                      ]}
+                    >
+                      {value}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              {inputErrors.frequency && <Text style={styles.errorText}>{inputErrors.frequency}</Text>}
+            </View>
+
+            {editingMedication && renderTimeInputs(editingMedication, true)}
             
             <TextInput
               label="Notes"
@@ -492,8 +564,18 @@ const styles = StyleSheet.create({
   },
   medicationCard: {
     marginBottom: theme.spacing.md,
-    borderRadius: theme.roundness,
-    ...theme.shadows.medium,
+    borderRadius: 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
     backgroundColor: theme.colors.background,
   },
   cardHeader: {
@@ -555,7 +637,18 @@ const styles = StyleSheet.create({
   },
   dialog: {
     backgroundColor: theme.colors.background,
-    borderRadius: theme.roundness,
+    borderRadius: 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
   },
   dialogTitle: {
     ...theme.typography.h3,
@@ -605,6 +698,90 @@ const styles = StyleSheet.create({
   },
   snackbar: {
     backgroundColor: theme.colors.error,
+  },
+  frequencyContainer: {
+    marginBottom: theme.spacing.md,
+  },
+  frequencyLabel: {
+    ...theme.typography.medium,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
+  },
+  frequencyScale: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  frequencyButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.divider,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  selectedFrequency: {
+    backgroundColor: theme.colors.primary,
+    borderWidth: 0,
+  },
+  frequencyButtonText: {
+    ...theme.typography.medium,
+    fontSize: 14,
+    color: theme.colors.text,
+  },
+  selectedFrequencyText: {
+    color: '#fff',
+  },
+  timeInputsContainer: {
+    marginBottom: theme.spacing.md,
+  },
+  timeInputsLabel: {
+    ...theme.typography.medium,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
+  },
+  timeInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  timeLabel: {
+    ...theme.typography.medium,
+    color: theme.colors.text,
+    marginRight: theme.spacing.sm,
+    minWidth: 80,
+  },
+  timeInput: {
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderColor: theme.colors.divider,
+    borderRadius: 8,
+    justifyContent: 'center',
+    paddingHorizontal: theme.spacing.sm,
+    backgroundColor: theme.colors.background,
+  },
+  timeText: {
+    ...theme.typography.regular,
+    color: theme.colors.text,
+  },
+  timePicker: {
+    flex: 1,
+    height: 200,
   },
 });
 

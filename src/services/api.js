@@ -1,4 +1,4 @@
-const BASE_URL = 'https://medbud.onrender.com';
+const BASE_URL = 'http://localhost:8000';
 
 export const api = {
   // Symptoms

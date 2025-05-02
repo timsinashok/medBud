@@ -417,12 +417,12 @@ function HomeScreen({ navigation }) {
                 >
                   <Title style={styles.medicationName}>{med.name || 'Unnamed Medication'}</Title>
                   <View style={styles.medicationDetails}>
-                    <Chip icon="pill" style={styles.medicationChip}>
-                      {med.dosage || 'N/A'}
+                    <Chip icon="repeat" style={styles.medicationChip}>
+                      {med.frequency} times per day
                     </Chip>
-                    {med.frequency && (
-                      <Chip icon="repeat" style={styles.medicationChip}>
-                        {med.frequency}
+                    {med.times && med.times.length > 0 && (
+                      <Chip icon="clock" style={styles.medicationChip}>
+                        {med.times.join(', ')}
                       </Chip>
                     )}
                   </View>

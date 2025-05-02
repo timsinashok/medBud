@@ -57,8 +57,8 @@ class MedicationModel(BaseModel):
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     user_id: str
     name: str
-    dosage: str
-    frequency: str
+    frequency: int
+    times: List[str]
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
@@ -70,13 +70,13 @@ class MedicationModel(BaseModel):
 
 class MedicationCreate(BaseModel):
     name: str
-    dosage: str
-    frequency: str
+    frequency: int
+    times: List[str]
 
 class MedicationUpdate(BaseModel):
     name: Optional[str] = None
-    dosage: Optional[str] = None
-    frequency: Optional[str] = None
+    frequency: Optional[int] = None
+    times: Optional[List[str]] = None
 
 # Report Query Model
 class ReportQuery(BaseModel):
