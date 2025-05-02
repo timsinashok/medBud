@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 import os
 
-from routes import symptoms, medications, reports, users
+from routes import symptoms, medications, reports, users, auth
 
 
 # Load environment variables
@@ -19,10 +19,11 @@ app = FastAPI(
 
 # Configure CORS
 origins = [
+    "*",
     "http://localhost",
     "http://localhost:3000",
     "http://localhost:8000",
-    "*",  # For development - remove in production
+    "http://localhost:19006/",  # For development - remove in production
 ]
 
 app.add_middleware(
@@ -49,6 +50,7 @@ app.include_router(symptoms.router, tags=["symptoms"], prefix="/api/symptoms")
 app.include_router(medications.router, tags=["medications"], prefix="/api/medications")
 app.include_router(reports.router, tags=["reports"], prefix="/api/reports")
 app.include_router(users.router, tags=["users"], prefix="/api/users")
+app.include_router(auth.router, tags=["auth"], prefix="/api/auth")
 
 # Root endpoint
 @app.get("/", tags=["root"])
