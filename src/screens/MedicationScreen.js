@@ -185,38 +185,25 @@ function MedicationScreen() {
       }
     };
 
-    const handleTimeChange = (index, event, selectedTime) => {
-      setShowTimePicker(null);
-      if (selectedTime) {
-        const newTimes = [...times];
-        const hours = selectedTime.getHours().toString().padStart(2, '0');
-        const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
-        newTimes[index] = `${hours}:${minutes}`;
-        setTimes(newTimes);
-      }
-    };
-
     return (
       <View style={styles.timeInputsContainer}>
         <Text style={styles.timeInputsLabel}>Reminder Times</Text>
         {Array.from({ length: medication.frequency }).map((_, index) => (
           <View key={index} style={styles.timeInputRow}>
             <Text style={styles.timeLabel}>Time {index + 1}</Text>
-            <Pressable
+            <TextInput
+              type="time"
+              value={times[index] || ''}
+              onChangeText={text => {
+                const newTimes = [...times];
+                newTimes[index] = text;
+                setTimes(newTimes);
+              }}
               style={styles.timeInput}
-              onPress={() => setShowTimePicker(index)}
-            >
-              <Text style={styles.timeText}>{times[index] || 'Select time'}</Text>
-            </Pressable>
-            {showTimePicker === index && (
-              <DateTimePicker
-                value={times[index] ? new Date(`2000-01-01T${times[index]}`) : new Date()}
-                mode="time"
-                display="spinner"
-                onChange={(event, selectedTime) => handleTimeChange(index, event, selectedTime)}
-                style={styles.timePicker}
-              />
-            )}
+              disabled={isLoading}
+              mode="outlined"
+              placeholder="Select time"
+            />
           </View>
         ))}
         {inputErrors.times && <Text style={styles.errorText}>{inputErrors.times}</Text>}
@@ -564,18 +551,8 @@ const styles = StyleSheet.create({
   },
   medicationCard: {
     marginBottom: theme.spacing.md,
-    borderRadius: 10,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    borderRadius: theme.roundness,
+    ...theme.shadows.medium,
     backgroundColor: theme.colors.background,
   },
   cardHeader: {
@@ -637,18 +614,7 @@ const styles = StyleSheet.create({
   },
   dialog: {
     backgroundColor: theme.colors.background,
-    borderRadius: 10,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
+    borderRadius: theme.roundness,
   },
   dialogTitle: {
     ...theme.typography.h3,
@@ -722,17 +688,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: theme.colors.divider,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
   },
   selectedFrequency: {
     backgroundColor: theme.colors.primary,
@@ -768,20 +723,11 @@ const styles = StyleSheet.create({
   timeInput: {
     flex: 1,
     height: 40,
-    borderWidth: 1,
-    borderColor: theme.colors.divider,
-    borderRadius: 8,
-    justifyContent: 'center',
-    paddingHorizontal: theme.spacing.sm,
     backgroundColor: theme.colors.background,
   },
   timeText: {
     ...theme.typography.regular,
     color: theme.colors.text,
-  },
-  timePicker: {
-    flex: 1,
-    height: 200,
   },
 });
 
