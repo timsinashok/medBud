@@ -1,8 +1,9 @@
+// At the top of the file, with your other imports
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, TouchableOpacity, Image } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl, Text, TouchableOpacity, Image } from 'react-native';
 import { 
   Card, Title, Paragraph, Searchbar, ActivityIndicator, 
-  Snackbar, Button, Text, Chip, Surface, Divider 
+  Snackbar, Button, Text as PaperText, Chip, Surface, Divider 
 } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIsFocused } from '@react-navigation/native';
@@ -10,13 +11,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from 'react-native-paper-dates';
 import { api } from '../services/api';
 import { theme } from '../theme/theme';
-
-// Temporary user ID - In a real app, this would come from authentication
-const USER_ID = '67ebd559c9003543caba959c';
+import { useContext } from 'react';
+import { UserContext } from '../../App';
 
 function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
+  const { getUserId } = useContext(UserContext);
+  
+  // Function to safely get the user ID with a fallback
+  const getUserIdSafe = () => {
+    const userId = getUserId();
+    return userId || '67ebd559c9003543caba959c'; // Fallback for development only
+  };
   
   const [recentSymptoms, setRecentSymptoms] = useState([]);
   const [medications, setMedications] = useState([]);
@@ -38,86 +45,6 @@ function HomeScreen({ navigation }) {
     }
   }, [isFocused]);
 
-  const performSearch = useCallback(() => {
-    try {
-      setSearchPerformed(true);
-      setSearchError(null);
-      
-      // Check if user has provided any search criteria
-      const hasSearchQuery = searchQuery && searchQuery.trim().length > 0;
-      const hasDateRange = startDate !== null || endDate !== null;
-      
-      if (!hasSearchQuery && !hasDateRange) {
-        setSearchError("Please enter search text or select a date range");
-        setFilteredSymptoms([]);
-        return;
-      }
-      
-      // Check if search query exceeds maximum keyword limit
-      if (hasSearchQuery) {
-        const keywords = searchQuery.trim().split(/\s+/);
-        if (keywords.length > 20) {
-          setSearchError("Search is limited to a maximum of 20 keywords");
-          setFilteredSymptoms([]);
-          return;
-        }
-      }
-      
-      if (!allSymptoms || !Array.isArray(allSymptoms)) {
-        setFilteredSymptoms([]);
-        return;
-      }
-
-      const searchLower = (searchQuery || '').toLowerCase().trim();
-      
-      const filtered = allSymptoms.filter(symptom => {
-        if (!symptom || typeof symptom !== 'object') return false;
-        
-        // Date filtering
-        if (hasDateRange) {
-          const symptomDate = symptom.timestamp ? new Date(symptom.timestamp) : null;
-          
-          // Skip items without valid timestamps if date filtering is active
-          if (!symptomDate) return false;
-          
-          // Filter by start date if set
-          if (startDate && symptomDate < startDate) return false;
-          
-          // Filter by end date if set (end of the day for inclusive range)
-          if (endDate) {
-            const endOfDay = new Date(endDate);
-            endOfDay.setHours(23, 59, 59, 999);
-            if (symptomDate > endOfDay) return false;
-          }
-        }
-        
-        // Text search if search query exists
-        if (hasSearchQuery) {
-          const name = symptom.name?.toLowerCase() || '';
-          const details = symptom.details?.toLowerCase() || '';
-          if (!name.includes(searchLower) && !details.includes(searchLower)) {
-            return false;
-          }
-        }
-        
-        return true;
-      });
-      
-      // Sort results by most recent first (chronological order)
-      const sortedResults = [...filtered].sort((a, b) => {
-        const dateA = a.timestamp ? new Date(a.timestamp) : new Date(0);
-        const dateB = b.timestamp ? new Date(b.timestamp) : new Date(0);
-        return dateB - dateA; // Descending order (newest first)
-      });
-      
-      setFilteredSymptoms(sortedResults);
-    } catch (error) {
-      console.error('Error filtering symptoms:', error);
-      setFilteredSymptoms([]);
-      setSearchError("An error occurred while searching");
-    }
-  }, [searchQuery, startDate, endDate, allSymptoms]);
-
   const loadData = async (refresh = false) => {
     try {
       if (refresh) {
@@ -127,10 +54,12 @@ function HomeScreen({ navigation }) {
       }
       setError(null);
 
+      const userId = getUserIdSafe();
+      
       // Load both symptoms and medications in parallel
       const [symptomsData, medicationsData] = await Promise.all([
-        api.getSymptoms(USER_ID, 0, 100),  // Get last 100 symptoms for search
-        api.getMedications(USER_ID)
+        api.getSymptoms(userId, 0, 100),  // Get last 100 symptoms for search
+        api.getMedications(userId)
       ]);
 
       // Ensure symptomsData is an array
@@ -152,6 +81,76 @@ function HomeScreen({ navigation }) {
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+    }
+  };
+
+  // Add this function to your HomeScreen component
+// It should be added before the return statement
+
+  const performSearch = async () => {
+    try {
+      if (!searchQuery.trim() && !startDate && !endDate) {
+        setSearchError('Please enter a search term or select a date range');
+        return;
+      }
+
+      setSearchError(null);
+      setIsLoading(true);
+      
+      // Filter symptoms based on search criteria
+      let filtered = [...allSymptoms];
+      
+      // Filter by search query (name or details)
+      if (searchQuery.trim()) {
+        const query = searchQuery.trim().toLowerCase();
+        filtered = filtered.filter(symptom => {
+          const nameMatch = symptom.name && symptom.name.toLowerCase().includes(query);
+          const detailsMatch = symptom.details && symptom.details.toLowerCase().includes(query);
+          return nameMatch || detailsMatch;
+        });
+      }
+      
+      // Filter by date range
+      if (startDate || endDate) {
+        filtered = filtered.filter(symptom => {
+          if (!symptom.timestamp) return false;
+          
+          const symptomDate = new Date(symptom.timestamp);
+          
+          if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            // Set end date to end of day
+            end.setHours(23, 59, 59, 999);
+            return symptomDate >= start && symptomDate <= end;
+          } else if (startDate) {
+            const start = new Date(startDate);
+            return symptomDate >= start;
+          } else if (endDate) {
+            const end = new Date(endDate);
+            // Set end date to end of day
+            end.setHours(23, 59, 59, 999);
+            return symptomDate <= end;
+          }
+          
+          return true;
+        });
+      }
+      
+      // Sort results by timestamp (newest first)
+      filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      
+      setFilteredSymptoms(filtered);
+      setSearchPerformed(true);
+      
+      if (filtered.length === 0) {
+        setSearchError('No symptoms match your search criteria');
+      }
+    } catch (error) {
+      console.error('Error performing search:', error);
+      setSearchError('An error occurred while searching');
+    } finally {
+      setIsLoading(false);
     }
   };
 

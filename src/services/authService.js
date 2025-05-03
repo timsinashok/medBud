@@ -2,6 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_URL = 'https://medbud.onrender.com/api/auth';
+const USER_DATA_KEY = 'user_data';
 
 export const login = async (username, password) => {
   try {
@@ -19,9 +20,34 @@ export const login = async (username, password) => {
     });
     
     const { access_token } = response.data;
+    
+    // Store the token
     await AsyncStorage.setItem('token', access_token);
-    console.log(access_token)
-    return access_token;
+    
+    // Make a separate request to get user details including ID
+    try {
+      const userResponse = await axios.get(`${API_URL}/me`, {
+        headers: { Authorization: `Bearer ${access_token}` },
+      });
+      
+      // Extract user data including ID
+      const userData = {
+        username,
+        id: userResponse.data.id || userResponse.data._id, 
+        email: userResponse.data.email,
+      };
+      
+      // Store the complete user data
+      await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
+      
+      return { access_token, userData };
+    } catch (userError) {
+      console.error('Error fetching user details:', userError);
+      // If we can't get user details, store basic info
+      const basicUserData = { username, id: username }; // Use username as fallback ID
+      await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(basicUserData));
+      return { access_token, userData: basicUserData };
+    }
   } catch (error) {
     throw error.response?.data || { detail: 'Failed to login' };
   }
@@ -41,7 +67,15 @@ export const register = async (username, email, password) => {
 };
 
 export const logout = async () => {
-  await AsyncStorage.removeItem('token');
+  try {
+    // Remove both token and user data
+    await Promise.all([
+      AsyncStorage.removeItem('token'),
+      AsyncStorage.removeItem(USER_DATA_KEY)
+    ]);
+  } catch (error) {
+    console.error('Error during logout:', error);
+  }
 };
 
 export const getCurrentUser = async () => {
@@ -49,14 +83,39 @@ export const getCurrentUser = async () => {
     const token = await AsyncStorage.getItem('token');
     if (!token) return null;
 
-    const response = await axios.get(`${API_URL}/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return response.data;
+    // First try to get cached user data
+    const userData = await AsyncStorage.getItem(USER_DATA_KEY);
+    if (userData) {
+      return JSON.parse(userData);
+    }
+    
+    // If we have a token but no user data, try to fetch from API
+    try {
+      const response = await axios.get(`${API_URL}/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      const user = {
+        username: response.data.username,
+        id: response.data.id || response.data._id || response.data.username,
+        email: response.data.email,
+      };
+      
+      // Cache the user data
+      await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(user));
+      
+      return user;
+    } catch (apiError) {
+      console.error('Error fetching user from API:', apiError);
+      // If API call fails but we have a token, return minimal user data
+      // Use username as ID if no real ID is available
+      const username = 'User';
+      return { username, id: username };
+    }
   } catch (error) {
+    console.error('Error getting current user:', error);
     await AsyncStorage.removeItem('token');
+    await AsyncStorage.removeItem(USER_DATA_KEY);
     return null;
   }
 };
-
-

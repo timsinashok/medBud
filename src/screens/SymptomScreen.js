@@ -11,18 +11,29 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { api } from '../services/api';
 import { theme } from '../theme/theme';
-
-// Temporary user ID - In a real app, this would come from authentication
-const USER_ID = '67ebd559c9003543caba959c';
+import { useContext } from 'react';
+import { UserContext } from '../../App';
 
 // Constants for validation
 const MAX_SYMPTOM_NAME_WORDS = 100;
 const MAX_DETAILS_WORDS = 500;
 const MAX_RECENT_SYMPTOMS = 10;
-const PENDING_SYMPTOMS_STORAGE_KEY = `pending_symptoms_${USER_ID}`;
 
 function SymptomScreen() {
   const insets = useSafeAreaInsets();
+  const { getUserId } = useContext(UserContext);
+  
+  // Function to safely get the user ID with a fallback
+  const getUserIdSafe = () => {
+    const userId = getUserId();
+    return userId || '67ebd559c9003543caba959c'; // Fallback for development only
+  };
+
+  // Create a key for the pending symptoms that's specific to the user
+  const getPendingSymptomStorageKey = () => {
+    const userId = getUserIdSafe();
+    return `pending_symptoms_${userId}`;
+  };
 
   const [symptoms, setSymptoms] = useState([]);
   const [newSymptom, setNewSymptom] = useState({
@@ -40,21 +51,22 @@ function SymptomScreen() {
   const [skip, setSkip] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [netInfoUnsubscribe, setNetInfoUnsubscribe] = useState(null);
   const limit = 20; // Number of items per page
 
   // Load symptoms and pending symptoms on mount
   useEffect(() => {
     loadSymptoms();
     loadPendingSymptoms();
-    setupNetworkListeners();
-    setupAppStateListener();
+    const unsubscribe = setupNetworkListeners();
+    const appStateSubscription = setupAppStateListener();
     
     return () => {
-      NetInfo.removeAllListeners();
-      AppState.removeEventListener('change');
+      if (unsubscribe) unsubscribe();
+      if (appStateSubscription) appStateSubscription.remove();
     };
   }, []);
-  
+
   // Setup network state listeners
   const setupNetworkListeners = () => {
     const unsubscribe = NetInfo.addEventListener(state => {
@@ -77,7 +89,8 @@ function SymptomScreen() {
   
   // Setup app state listener to sync when app comes to foreground
   const setupAppStateListener = () => {
-    AppState.addEventListener('change', nextAppState => {
+    // Modern AppState subscription pattern
+    const subscription = AppState.addEventListener('change', nextAppState => {
       if (nextAppState === 'active') {
         // Check connection and sync pending symptoms when app becomes active
         NetInfo.fetch().then(state => {
@@ -88,12 +101,15 @@ function SymptomScreen() {
         });
       }
     });
+    
+    return subscription;
   };
   
   // Load pending symptoms from AsyncStorage
   const loadPendingSymptoms = async () => {
     try {
-      const storedSymptoms = await AsyncStorage.getItem(PENDING_SYMPTOMS_STORAGE_KEY);
+      const storageKey = getPendingSymptomStorageKey();
+      const storedSymptoms = await AsyncStorage.getItem(storageKey);
       if (storedSymptoms) {
         const parsedSymptoms = JSON.parse(storedSymptoms);
         setPendingSymptoms(parsedSymptoms);
@@ -106,8 +122,9 @@ function SymptomScreen() {
   // Save pending symptoms to AsyncStorage
   const savePendingSymptoms = async (updatedPendingSymptoms) => {
     try {
+      const storageKey = getPendingSymptomStorageKey();
       await AsyncStorage.setItem(
-        PENDING_SYMPTOMS_STORAGE_KEY, 
+        storageKey, 
         JSON.stringify(updatedPendingSymptoms)
       );
     } catch (error) {
@@ -123,11 +140,12 @@ function SymptomScreen() {
       setIsSyncing(true);
       let successCount = 0;
       let failedSymptoms = [];
+      const userId = getUserIdSafe();
       
       // Process each pending symptom
       for (const symptom of pendingSymptoms) {
         try {
-          await api.createSymptom(symptom, USER_ID);
+          await api.createSymptom(symptom, userId);
           successCount++;
         } catch (error) {
           console.error('Failed to sync symptom:', error);
@@ -189,11 +207,12 @@ function SymptomScreen() {
       setError(null);
 
       const currentSkip = refresh ? 0 : skip;
+      const userId = getUserIdSafe();
       
       // Only try to fetch from API if online
       let symptomsData = [];
       if (isOnline) {
-        symptomsData = await api.getSymptoms(USER_ID, currentSkip, limit);
+        symptomsData = await api.getSymptoms(userId, currentSkip, limit);
       } else {
         // If offline, just use what we have and show a message
         setError('You are offline. Showing cached symptoms.');
@@ -264,6 +283,7 @@ function SymptomScreen() {
       setIsLoading(true);
       setError(null);
 
+      const userId = getUserIdSafe();
       const symptomData = {
         name: newSymptom.name.trim(),
         details: newSymptom.notes.trim(),
@@ -281,11 +301,11 @@ function SymptomScreen() {
       if (isOnline) {
         // If online, try to send to server
         try {
-      await api.createSymptom(symptomData, USER_ID);
-      
+          await api.createSymptom(symptomData, userId);
+          
           // Refresh symptom list
-      setSkip(0);
-      await loadSymptoms(true);
+          setSkip(0);
+          await loadSymptoms(true);
         } catch (error) {
           console.error('Error adding symptom:', error);
           
@@ -915,3 +935,14 @@ function SymptomScreen() {
     });
 
     export default SymptomScreen;
+
+
+
+
+
+
+
+
+
+
+

@@ -9,13 +9,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../services/api';
 import { theme } from '../theme/theme';
+import { useContext } from 'react';
+import { UserContext } from '../../App';
 import DateTimePicker from '@react-native-community/datetimepicker';
-
-// Temporary user ID - In a real app, this would come from authentication
-const USER_ID = '67ebd559c9003543caba959c';
 
 function MedicationScreen() {
   const insets = useSafeAreaInsets();
+  const { getUserId } = useContext(UserContext);
+  
+  // Replace the hardcoded USER_ID with dynamic user ID
+  const getUserIdSafe = () => {
+    const userId = getUserId();
+    return userId || '67ebd559c9003543caba959c'; // Fallback for development only
+  };
   
   const [medications, setMedications] = useState([]);
   const [newMedication, setNewMedication] = useState({
@@ -39,7 +45,15 @@ function MedicationScreen() {
   const loadMedications = async () => {
     try {
       setIsLoading(true);
-      const medicationsData = await api.getMedications(USER_ID);
+      const userId = getUserIdSafe();
+      
+      if (!userId) {
+        setError('User ID not available. Please log in again.');
+        setMedications([]);
+        return;
+      }
+      
+      const medicationsData = await api.getMedications(userId);
       setMedications(medicationsData);
     } catch (error) {
       console.error('Error loading medications:', error);
@@ -80,8 +94,9 @@ function MedicationScreen() {
       setError(null);
       setInputErrors({});
 
+      const userId = getUserIdSafe();
       const medicationData = {
-        user_id: USER_ID,
+        user_id: userId,
         name: newMedication.name.trim(),
         frequency: newMedication.frequency,
         times: newMedication.times.map(time => time.trim()),
@@ -125,6 +140,7 @@ function MedicationScreen() {
       setError(null);
       setInputErrors({});
 
+      const userId = getUserIdSafe();
       const medicationData = {
         name: editingMedication.name.trim(),
         frequency: editingMedication.frequency,
@@ -132,7 +148,7 @@ function MedicationScreen() {
         notes: editingMedication.notes.trim() || ''
       };
 
-      await api.updateMedication(editingMedication._id, medicationData, USER_ID);
+      await api.updateMedication(editingMedication._id, medicationData, userId);
       await loadMedications();
       setShowEditDialog(false);
       setEditingMedication(null);
@@ -160,7 +176,8 @@ function MedicationScreen() {
             try {
               setIsLoading(true);
               setError(null);
-              await api.deleteMedication(medicationId, USER_ID);
+              const userId = getUserIdSafe();
+              await api.deleteMedication(medicationId, userId);
               await loadMedications();
             } catch (error) {
               console.error('Error deleting medication:', error);

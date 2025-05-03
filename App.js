@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { StatusBar } from 'react-native';
-import { NavigationContainer, DefaultTheme as NavigationDefaultTheme } from '@react-navigation/native';
+// App.js with proper user context
+import React, { useState, useEffect, createContext } from 'react';
+import { StatusBar, View, Text, TouchableOpacity, Alert } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Provider as PaperProvider } from 'react-native-paper';
@@ -17,7 +18,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 
 // Services
-import { getCurrentUser } from './src/services/authService';
+import { getCurrentUser, logout } from './src/services/authService';
 
 // Theme
 import { theme } from './src/theme/theme';
@@ -25,48 +26,78 @@ import { theme } from './src/theme/theme';
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-// Create a navigation theme that matches React Navigation's expected structure
-const navigationTheme = {
-  ...NavigationDefaultTheme,
-  colors: {
-    ...NavigationDefaultTheme.colors,
-    primary: theme.colors.primary,
-    background: theme.colors.background,
-    card: theme.colors.background,
-    text: theme.colors.text,
-    border: theme.colors.divider,
-    notification: theme.colors.notification,
-  },
-  fonts: {
-    regular: {
-      fontFamily: 'System',
-      fontWeight: '400',
-    },
-    medium: {
-      fontFamily: 'System',
-      fontWeight: '500',
-    },
-    light: {
-      fontFamily: 'System',
-      fontWeight: '300',
-    },
-    thin: {
-      fontFamily: 'System',
-      fontWeight: '100',
-    },
-    bold: {
-      fontFamily: 'System',
-      fontWeight: '700',
-    },
-  },
-  dark: false,
-};
+// Create enhanced user context
+export const UserContext = createContext({
+  user: null,
+  setUser: () => {},
+  getUserId: () => null,
+});
+
+// Custom header right component with logout button
+function LogoutButton({ navigation }) {
+  const { setUser } = React.useContext(UserContext);
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setUser(null);
+      
+      // Navigate back to Splash
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Splash' }],
+      });
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Show an error alert
+      Alert.alert(
+        'Logout Error',
+        'There was a problem logging out. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+  
+  return (
+    <TouchableOpacity 
+      onPress={handleLogout} 
+      style={{ marginRight: 16 }}
+    >
+      <Ionicons name="log-out-outline" size={24} color={theme.colors.primary} />
+    </TouchableOpacity>
+  );
+}
+
+// Custom header title component with username
+function HeaderTitle({ title, username }) {
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <Text style={{ 
+        fontSize: 20, 
+        fontWeight: '600', 
+        color: theme.colors.text 
+      }}>
+        {title}
+      </Text>
+      {username && (
+        <Text style={{ 
+          fontSize: 14, 
+          color: theme.colors.primary,
+        }}>
+          Welcome, {username}
+        </Text>
+      )}
+    </View>
+  );
+}
 
 // Main tab navigator
 function MainApp() {
+  const { user } = React.useContext(UserContext);
+  
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      screenOptions={({ route, navigation }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
 
@@ -112,40 +143,15 @@ function MainApp() {
           elevation: 1,
           backgroundColor: theme.colors.background,
         },
+        headerTitle: () => <HeaderTitle title={route.name} username={user?.username} />,
+        headerRight: () => <LogoutButton navigation={navigation} />,
+        headerTitleAlign: 'center',
       })}
     >
-      <Tab.Screen 
-        name="Home" 
-        component={HomeScreen} 
-        options={{ 
-          title: 'Dashboard',
-          headerTitleAlign: 'center',
-        }}
-      />
-      <Tab.Screen 
-        name="Symptoms" 
-        component={SymptomScreen} 
-        options={{ 
-          title: 'Log Symptoms',
-          headerTitleAlign: 'center',
-        }}
-      />
-      <Tab.Screen 
-        name="Medications" 
-        component={MedicationScreen} 
-        options={{ 
-          title: 'Medications',
-          headerTitleAlign: 'center',
-        }}
-      />
-      <Tab.Screen 
-        name="Reports" 
-        component={ReportScreen} 
-        options={{ 
-          title: 'Health Reports',
-          headerTitleAlign: 'center',
-        }}
-      />
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Symptoms" component={SymptomScreen} />
+      <Tab.Screen name="Medications" component={MedicationScreen} />
+      <Tab.Screen name="Reports" component={ReportScreen} />
     </Tab.Navigator>
   );
 }
@@ -162,7 +168,12 @@ function AuthStack() {
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
+
+  // Add getUserId function to properly get the current user ID
+  const getUserId = () => {
+    return user?.id || null;
+  };
 
   useEffect(() => {
     checkAuth();
@@ -170,10 +181,10 @@ export default function App() {
 
   const checkAuth = async () => {
     try {
-      const user = await getCurrentUser();
-      setIsAuthenticated(!!user);
+      const userData = await getCurrentUser();
+      setUser(userData);
     } catch (error) {
-      setIsAuthenticated(false);
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -184,22 +195,24 @@ export default function App() {
   }
 
   return (
-    <PaperProvider theme={theme}>
-      <SafeAreaProvider>
-        <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
-        <NavigationContainer theme={navigationTheme}>
-          <Stack.Navigator
-            initialRouteName="Splash"
-            screenOptions={{
-              headerShown: false,
-            }}
-          >
-            <Stack.Screen name="Splash" component={SplashScreen} />
-            <Stack.Screen name="Auth" component={AuthStack} />
-            <Stack.Screen name="MainApp" component={MainApp} />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </SafeAreaProvider>
-    </PaperProvider>
+    <UserContext.Provider value={{ user, setUser, getUserId }}>
+      <PaperProvider theme={theme}>
+        <SafeAreaProvider>
+          <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
+          <NavigationContainer>
+            <Stack.Navigator
+              initialRouteName={user ? "MainApp" : "Splash"}
+              screenOptions={{
+                headerShown: false,
+              }}
+            >
+              <Stack.Screen name="Splash" component={SplashScreen} />
+              <Stack.Screen name="Auth" component={AuthStack} />
+              <Stack.Screen name="MainApp" component={MainApp} />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </SafeAreaProvider>
+      </PaperProvider>
+    </UserContext.Provider>
   );
 }

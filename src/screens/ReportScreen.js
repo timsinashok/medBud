@@ -10,12 +10,11 @@ import { DatePickerModal } from 'react-native-paper-dates';
 import NetInfo from '@react-native-community/netinfo';
 import { api } from '../services/api';
 import { theme } from '../theme/theme';
+import { useContext } from 'react';
+import { UserContext } from '../../App';
 
 // Use require for the logo
 const logoImage = require('../../assets/logo.png');
-
-// Temporary user ID - In a real app, this would come from authentication
-const USER_ID = '67ebd559c9003543caba959c';
 
 // Constants for PDF styling
 const THEME_COLOR = theme.colors.primary;
@@ -37,6 +36,13 @@ const fonts = {
 
 function ReportScreen() {
   const insets = useSafeAreaInsets();
+  const { getUserId } = useContext(UserContext);
+  
+  // Function to safely get the user ID with a fallback
+  const getUserIdSafe = () => {
+    const userId = getUserId();
+    return userId || '67ebd559c9003543caba959c'; // Fallback for development only
+  };
   
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -127,7 +133,8 @@ function ReportScreen() {
         return;
       }
 
-      const reportData = await api.generateReport(USER_ID, startDate, endDate, 'summary');
+      const userId = getUserIdSafe();
+      const reportData = await api.generateReport(userId, startDate, endDate, 'summary');
   
       setReport({
         content: formatReportContent(reportData),

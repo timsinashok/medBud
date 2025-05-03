@@ -21,6 +21,11 @@ export const api = {
   },
 
   async getSymptoms(userId, skip = 0, limit = 100) {
+    if (!userId) {
+      console.error('Missing userId in getSymptoms call');
+      return []; // Return empty array if no userId
+    }
+    
     const response = await fetch(`${BASE_URL}/api/symptoms/${userId}?skip=${skip}&limit=${limit}`);
     
     const data = await response.json();
@@ -52,6 +57,11 @@ export const api = {
   },
 
   async getMedications(userId) {
+    if (!userId) {
+      console.error('Missing userId in getMedications call');
+      return []; // Return empty array if no userId
+    }
+    
     const response = await fetch(`${BASE_URL}/api/medications/${userId}`);
     
     const data = await response.json();

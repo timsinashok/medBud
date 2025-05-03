@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,10 @@ import {
   Alert,
 } from 'react-native';
 import { login } from '../services/authService';
+import { UserContext } from '../../App';
 
 const LoginScreen = ({ navigation }) => {
+  const { setUser } = useContext(UserContext);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,11 +24,20 @@ const LoginScreen = ({ navigation }) => {
 
     try {
       setLoading(true);
-      const access_token = await login(username, password);
-      if (access_token) {
-        navigation.replace('MainApp');
+      const result = await login(username, password);
+      
+      if (result && result.userData) {
+        // Store complete user data in context
+        setUser(result.userData);
+        
+        // Navigate to main app
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainApp' }],
+        });
       }
     } catch (error) {
+      console.error('Login error:', error);
       Alert.alert('Error', error.detail || 'Failed to login');
     } finally {
       setLoading(false);
@@ -117,4 +128,3 @@ const styles = StyleSheet.create({
 });
 
 export default LoginScreen;
-
