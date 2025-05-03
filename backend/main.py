@@ -23,7 +23,7 @@ origins = [
     "http://localhost",
     "http://localhost:3000",
     "http://localhost:8000",
-    "http://localhost:19006/",  # For development - remove in production
+    "http://localhost:19006",  # For development - remove in production
 ]
 
 app.add_middleware(

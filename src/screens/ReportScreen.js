@@ -10,7 +10,6 @@ import { DatePickerModal } from 'react-native-paper-dates';
 import NetInfo from '@react-native-community/netinfo';
 import { api } from '../services/api';
 import { theme } from '../theme/theme';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 // Use require for the logo
 const logoImage = require('../../assets/logo.png');
@@ -353,7 +352,6 @@ function ReportScreen() {
                 }),
                 margin: [15, 10, 0, 0]
               },
-              // Section separator
               index < sections.length - 1 ? {
                 canvas: [
                   {
@@ -425,16 +423,16 @@ function ReportScreen() {
       contentContainerStyle={styles.contentContainer}
     >
       {!isOnline && (
-        <Animated.View entering={FadeIn.duration(400)}>
+        <View>
           <Surface style={styles.offlineBanner}>
             <Ionicons name="cloud-offline" size={18} color="#fff" />
             <Text style={styles.offlineText}>You are offline</Text>
           </Surface>
-        </Animated.View>
+        </View>
       )}
 
       {error && (
-        <Animated.View entering={FadeIn.duration(400)}>
+        <View>
           <Card style={[styles.errorCard]}>
             <Card.Content>
               <View style={styles.errorContent}>
@@ -443,10 +441,10 @@ function ReportScreen() {
               </View>
             </Card.Content>
           </Card>
-        </Animated.View>
+        </View>
       )}
 
-      <Animated.View entering={FadeIn.duration(500)}>
+      <View>
         <Surface style={styles.headerCard}>
           <View style={styles.headerContent}>
             <Image 
@@ -462,9 +460,9 @@ function ReportScreen() {
             </View>
           </View>
         </Surface>
-      </Animated.View>
+      </View>
 
-      <Animated.View entering={FadeInDown.duration(500).delay(100)}>
+      <View>
         <Card style={styles.card}>
           <Card.Content>
             <Title style={styles.cardTitle}>Generate Health Report</Title>
@@ -507,10 +505,10 @@ function ReportScreen() {
             </Button>
           </Card.Content>
         </Card>
-      </Animated.View>
+      </View>
 
       {report && (
-        <Animated.View entering={FadeInDown.duration(500).delay(200)}>
+        <View>
           <Card style={styles.reportCard}>
             <Card.Content>
               <View style={styles.reportHeader}>
@@ -547,9 +545,8 @@ function ReportScreen() {
                 const content = lines.slice(1).join('\n');
                 
                 return (
-                  <Animated.View 
+                  <View 
                     key={section.id} 
-                    entering={FadeInDown.duration(400).delay(300 + (index * 100))}
                     style={styles.section}
                   >
                     {index > 0 && <Divider style={styles.sectionDivider} />}
@@ -560,12 +557,12 @@ function ReportScreen() {
                     <Text style={styles.reportContent}>
                       {content}
                     </Text>
-                  </Animated.View>
+                  </View>
                 );
               })}
             </Card.Content>
           </Card>
-        </Animated.View>
+        </View>
       )}
 
       <DatePickerModal

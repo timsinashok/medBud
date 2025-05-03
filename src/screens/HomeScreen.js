@@ -10,7 +10,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from 'react-native-paper-dates';
 import { api } from '../services/api';
 import { theme } from '../theme/theme';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 // Temporary user ID - In a real app, this would come from authentication
 const USER_ID = '67ebd559c9003543caba959c';
@@ -230,7 +229,7 @@ function HomeScreen({ navigation }) {
         />
       }
     >
-      <Animated.View entering={FadeIn.duration(500)} style={styles.header}>
+      <View style={styles.header}>
         <View style={styles.headerContent}>
           <Image 
             source={require('../../assets/logo.png')} 
@@ -243,9 +242,9 @@ function HomeScreen({ navigation }) {
             <Text style={styles.tagline}>Your health tracking companion</Text>
           </View>
         </View>
-      </Animated.View>
+      </View>
 
-      <Animated.View entering={FadeInDown.duration(500).delay(100)}>
+      <View>
         <Surface style={styles.searchSurface}>
           <Text style={styles.searchTitle}>Find Symptoms</Text>
           <Searchbar
@@ -309,10 +308,10 @@ function HomeScreen({ navigation }) {
             <Text style={styles.errorText}>{searchError}</Text>
           )}
         </Surface>
-      </Animated.View>
+      </View>
 
       {searchPerformed && (
-        <Animated.View entering={FadeInDown.duration(500).delay(200)}>
+        <View>
           <Card style={theme.defaultCardStyle}>
             <Card.Content>
               <View style={styles.searchResultsHeader}>
@@ -354,18 +353,17 @@ function HomeScreen({ navigation }) {
               )}
             </Card.Content>
           </Card>
-        </Animated.View>
+        </View>
       )}
 
-      <Animated.View entering={FadeInDown.duration(500).delay(300)}>
+      <View>
         <Card style={theme.defaultCardStyle}>
           <Card.Content>
             <Title style={styles.sectionTitle}>Recent Symptoms</Title>
             {recentSymptoms.length > 0 ? (
               recentSymptoms.map((symptom, index) => (
-                <Animated.View 
+                <View 
                   key={symptom._id} 
-                  entering={FadeInDown.duration(400).delay(100 * index)}
                   style={styles.symptomItem}
                 >
                   <View style={styles.resultHeader}>
@@ -385,7 +383,7 @@ function HomeScreen({ navigation }) {
                     <Paragraph style={styles.details}>{symptom.details}</Paragraph>
                   )}
                   {index < recentSymptoms.length - 1 && <Divider style={styles.itemDivider} />}
-                </Animated.View>
+                </View>
               ))
             ) : (
               <View style={styles.emptyStateContainer}>
@@ -402,17 +400,16 @@ function HomeScreen({ navigation }) {
             )}
           </Card.Content>
         </Card>
-      </Animated.View>
+      </View>
 
-      <Animated.View entering={FadeInDown.duration(500).delay(400)}>
+      <View>
         <Card style={theme.defaultCardStyle}>
           <Card.Content>
             <Title style={styles.sectionTitle}>Your Medications</Title>
             {medications.length > 0 ? (
               medications.map((med, index) => (
-                <Animated.View 
+                <View 
                   key={med._id} 
-                  entering={FadeInDown.duration(400).delay(100 * index)}
                   style={styles.medicationItem}
                 >
                   <Title style={styles.medicationName}>{med.name || 'Unnamed Medication'}</Title>
@@ -428,7 +425,7 @@ function HomeScreen({ navigation }) {
                   </View>
                   {med.notes && <Paragraph style={styles.details}>Notes: {med.notes}</Paragraph>}
                   {index < medications.length - 1 && <Divider style={styles.itemDivider} />}
-                </Animated.View>
+                </View>
               ))
             ) : (
               <View style={styles.emptyStateContainer}>
@@ -445,7 +442,7 @@ function HomeScreen({ navigation }) {
             )}
           </Card.Content>
         </Card>
-      </Animated.View>
+      </View>
 
       <DatePickerModal
         locale="en"

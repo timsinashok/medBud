@@ -1,13 +1,12 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Card, Title, Paragraph, Text, useTheme } from 'react-native-paper';
-import Animated, { FadeInUp } from 'react-native-reanimated';
 
 const SymptomItem = ({ symptom, isSearchResult = false }) => {
   const theme = useTheme();
 
   return (
-    <Animated.View entering={FadeInUp.duration(300).delay(isSearchResult ? 0 : 100)}>
+    <View>
       <Card style={styles.card}>
         <Card.Content>
           <Title style={styles.name}>{symptom.name || 'Unnamed Symptom'}</Title>
@@ -24,7 +23,7 @@ const SymptomItem = ({ symptom, isSearchResult = false }) => {
           )}
         </Card.Content>
       </Card>
-    </Animated.View>
+    </View>
   );
 };
 

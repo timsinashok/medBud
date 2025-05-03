@@ -9,7 +9,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../services/api';
 import { theme } from '../theme/theme';
-import Animated, { FadeIn, SlideInRight } from 'react-native-reanimated';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 // Temporary user ID - In a real app, this would come from authentication
@@ -248,10 +247,7 @@ function MedicationScreen() {
             </Surface>
 
             {medications.map((medication, index) => (
-              <Animated.View 
-                key={medication._id} 
-                entering={SlideInRight.duration(300).delay(index * 100)}
-              >
+              <View key={medication._id}>
                 <Card style={styles.medicationCard}>
                   <Card.Content>
                     <View style={styles.cardHeader}>
@@ -301,7 +297,7 @@ function MedicationScreen() {
                     )}
                   </Card.Content>
                 </Card>
-              </Animated.View>
+              </View>
             ))}
           </>
         )}
