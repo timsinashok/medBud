@@ -63,7 +63,6 @@ def generate_report(
     medication_data = [
         {
             "name": m["name"],
-            "dosage": m["dosage"],
             "frequency": m["frequency"]
         } for m in medications
     ]

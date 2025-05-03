@@ -27,8 +27,14 @@ const LoginScreen = ({ navigation }) => {
       const result = await login(username, password);
       
       if (result && result.userData) {
+        // Ensure userData has the correct id field
+        const userData = {
+          ...result.userData,
+          id: result.userData.id || result.userData._id || result.userData.username
+        };
+        
         // Store complete user data in context
-        setUser(result.userData);
+        setUser(userData);
         
         // Navigate to main app
         navigation.reset({

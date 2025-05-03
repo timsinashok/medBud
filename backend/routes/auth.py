@@ -49,7 +49,16 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     user = users_collection.find_one({"username": username})
     if user is None:
         raise credentials_exception
-    return UserInDB(**user)
+
+    # Convert ObjectId to string and include it in the user data
+    user["_id"] = str(user["_id"])
+    # Create a dictionary with all user fields including _id
+    user_data = {
+        "username": user["username"],
+        "email": user.get("email", ""),
+        "_id": user["_id"]
+    }
+    return user_data
 
 @router.post("/register", response_model=User)
 async def register(user: UserInDB):
@@ -98,6 +107,6 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     access_token = create_access_token(data={"sub": user_in_db.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
-@router.get("/me", response_model=User)
-async def read_users_me(current_user: User = Depends(get_current_user)):
+@router.get("/me")
+async def read_users_me(current_user = Depends(get_current_user)):
     return current_user

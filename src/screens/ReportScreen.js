@@ -41,7 +41,7 @@ function ReportScreen() {
   // Function to safely get the user ID with a fallback
   const getUserIdSafe = () => {
     const userId = getUserId();
-    return userId || '67ebd559c9003543caba959c'; // Fallback for development only
+    return userId; // Fallback for development only
   };
   
   const [startDate, setStartDate] = useState('');

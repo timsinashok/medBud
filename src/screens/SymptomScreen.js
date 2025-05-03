@@ -29,6 +29,8 @@ function SymptomScreen() {
     return userId || '67ebd559c9003543caba959c'; // Fallback for development only
   };
 
+  console.log(getUserIdSafe());
+
   // Create a key for the pending symptoms that's specific to the user
   const getPendingSymptomStorageKey = () => {
     const userId = getUserIdSafe();

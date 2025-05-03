@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'https://medbud.onrender.com/api/auth';
+const API_URL = 'http://127.0.0.1:8000/api/auth';
 const USER_DATA_KEY = 'user_data';
 
 export const login = async (username, password) => {
@@ -20,6 +20,8 @@ export const login = async (username, password) => {
     });
     
     const { access_token } = response.data;
+
+    console.log(access_token);
     
     // Store the token
     await AsyncStorage.setItem('token', access_token);
@@ -36,6 +38,8 @@ export const login = async (username, password) => {
         id: userResponse.data.id || userResponse.data._id, 
         email: userResponse.data.email,
       };
+
+      console.log(userData)
       
       // Store the complete user data
       await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
@@ -86,7 +90,11 @@ export const getCurrentUser = async () => {
     // First try to get cached user data
     const userData = await AsyncStorage.getItem(USER_DATA_KEY);
     if (userData) {
-      return JSON.parse(userData);
+      const parsedData = JSON.parse(userData);
+      return {
+        ...parsedData,
+        id: parsedData.id || parsedData._id || parsedData.username
+      };
     }
     
     // If we have a token but no user data, try to fetch from API
@@ -108,7 +116,6 @@ export const getCurrentUser = async () => {
     } catch (apiError) {
       console.error('Error fetching user from API:', apiError);
       // If API call fails but we have a token, return minimal user data
-      // Use username as ID if no real ID is available
       const username = 'User';
       return { username, id: username };
     }

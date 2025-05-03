@@ -17,10 +17,16 @@ function MedicationScreen() {
   const insets = useSafeAreaInsets();
   const { getUserId } = useContext(UserContext);
   
-  // Replace the hardcoded USER_ID with dynamic user ID
+  // Function to safely get the user ID with a fallback
   const getUserIdSafe = () => {
     const userId = getUserId();
     return userId || '67ebd559c9003543caba959c'; // Fallback for development only
+  };
+
+  // Create a key for the pending medications that's specific to the user
+  const getPendingMedicationStorageKey = () => {
+    const userId = getUserIdSafe();
+    return `pending_medications_${userId}`;
   };
   
   const [medications, setMedications] = useState([]);
