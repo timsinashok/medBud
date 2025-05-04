@@ -7,6 +7,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import NotificationHandler from './src/components/NotificationHandler';
 
 // Screens
 import SplashScreen from './src/screens/SplashScreen';
@@ -199,7 +200,8 @@ export default function App() {
       <PaperProvider theme={theme}>
         <SafeAreaProvider>
           <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
-          <NavigationContainer>
+          <NavigationContainer theme={theme}>
+            <NotificationHandler />
             <Stack.Navigator
               initialRouteName={user ? "MainApp" : "Splash"}
               screenOptions={{

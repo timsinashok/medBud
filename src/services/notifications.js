@@ -1,126 +1,264 @@
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { api } from './api';
 
-// Configure notifications with alarm sound
+// Configure notifications with sound and alert priority
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
-    priority: 'max',
+    priority: Notifications.AndroidNotificationPriority.MAX,
   }),
 });
 
-const SNOOZE_DURATION = 10; // 10 minutes
-const MAX_SNOOZES = 2;
+// Configure notification sounds
+if (Platform.OS === 'ios') {
+  Notifications.setNotificationCategoryAsync('medication-reminder', [
+    {
+      identifier: 'mark-taken',
+      buttonTitle: 'Mark as Taken',
+      options: {
+        isAuthenticationRequired: false,
+        isDestructive: false,
+      },
+    },
+    {
+      identifier: 'snooze',
+      buttonTitle: 'Snooze (30s)',
+      options: {
+        isAuthenticationRequired: false,
+        isDestructive: false,
+      },
+    },
+    {
+      identifier: 'mark-missed',
+      buttonTitle: 'Mark as Not Taken',
+      options: {
+        isAuthenticationRequired: false,
+        isDestructive: true,
+      },
+    },
+  ]);
+}
 
-export const NotificationService = {
-  // Store notification data with snooze count
-  async storeNotificationData(notificationId, medicationId) {
-    try {
-      const key = `notification_${notificationId}`;
-      const data = {
-        medicationId,
-        snoozesLeft: MAX_SNOOZES,
-        lastSnoozeTime: null,
-      };
-      await AsyncStorage.setItem(key, JSON.stringify(data));
-    } catch (error) {
-      console.error('Error storing notification data:', error);
-    }
-  },
+const SNOOZE_DURATION = 30; // 30 seconds for testing (change to 600 for 10 minutes in production)
+const MAX_SNOOZES = 3;
+const QUEUE_CHECK_INTERVAL = 30000; // Check queue every 30 seconds
 
-  // Get notification data
-  async getNotificationData(notificationId) {
-    try {
-      const key = `notification_${notificationId}`;
-      const data = await AsyncStorage.getItem(key);
-      return data ? JSON.parse(data) : null;
-    } catch (error) {
-      console.error('Error getting notification data:', error);
-      return null;
-    }
-  },
+class NotificationQueue {
+  constructor() {
+    this.queue = [];
+    this.isProcessing = false;
+    this.checkInterval = null;
+  }
 
-  // Update snooze count
-  async updateSnoozeCount(notificationId) {
+  async initialize() {
+    // Load existing queue from storage
     try {
-      const data = await this.getNotificationData(notificationId);
-      if (!data) {
-        return { snoozesLeft: 0, success: false };
+      const storedQueue = await AsyncStorage.getItem('notification_queue');
+      if (storedQueue) {
+        this.queue = JSON.parse(storedQueue);
+        // Filter out past notifications
+        const now = new Date();
+        this.queue = this.queue.filter(item => new Date(item.scheduledTime) > now);
+        console.log('Loaded queue from storage:', this.queue);
       }
-
-      if (data.snoozesLeft <= 0) {
-        return { snoozesLeft: 0, success: false };
-      }
-
-      data.snoozesLeft -= 1;
-      data.lastSnoozeTime = new Date().toISOString();
-      await AsyncStorage.setItem(`notification_${notificationId}`, JSON.stringify(data));
-      
-      return { snoozesLeft: data.snoozesLeft, success: true };
     } catch (error) {
-      console.error('Error updating snooze count:', error);
-      return { snoozesLeft: 0, success: false };
+      console.error('Error loading notification queue:', error);
     }
-  },
+  }
 
-  // Schedule a medication reminder
-  async scheduleMedicationReminder(medication) {
-    if (Platform.OS === 'web') {
-      console.log('Notifications are not supported on web platform');
+  async addToQueue(medication, time, isSnooze = false) {
+    const scheduledTime = new Date();
+    const [hours, minutes] = time.split(':').map(Number);
+    
+    // Validate time format
+    if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+      console.error('Invalid time format:', time);
       return;
     }
 
-    try {
-      const times = medication.frequency.split(',').map(time => time.trim());
-      const notifications = [];
-      
-      for (const time of times) {
-        const [hours, minutes] = time.split(':').map(Number);
-        
-        // Calculate next occurrence of this time
-        const scheduledTime = new Date();
-        scheduledTime.setHours(hours, minutes, 0, 0);
-        
-        // If time has passed for today, schedule for tomorrow
-        if (scheduledTime < new Date()) {
-          scheduledTime.setDate(scheduledTime.getDate() + 1);
-        }
-        
-        const notificationId = await Notifications.scheduleNotificationAsync({
-          content: {
-            title: '🔔 Medication Reminder',
-            body: `Time to take ${medication.name} - ${medication.dosage}`,
-            data: {
-              type: 'medication-reminder',
-              medicationId: medication._id,
-              time: time,
-              name: medication.name,
-              dosage: medication.dosage,
-            },
-            sound: true,
-            priority: 'max',
-            vibrate: [0, 250, 250, 250],
-          },
-          trigger: {
-            hour: hours,
-            minute: minutes,
-            repeats: true,
-          },
-        });
+    console.log('Parsing time:', {
+      input: time,
+      hours,
+      minutes,
+      currentTime: scheduledTime.toLocaleString()
+    });
 
-        await this.storeNotificationData(notificationId, medication._id);
-        notifications.push(notificationId);
+    // Set the time in 24-hour format
+    scheduledTime.setHours(hours, minutes, 0, 0);
+
+    // If time has passed for today, schedule for tomorrow
+    const now = new Date();
+    if (scheduledTime <= now) {
+      console.log('Time has passed for today, scheduling for tomorrow');
+      scheduledTime.setDate(scheduledTime.getDate() + 1);
+    }
+
+    const queueItem = {
+      medicationId: medication._id,
+      userId: medication.user_id,
+      name: medication.name,
+      time: time,
+      scheduledTime: scheduledTime.toISOString(),
+      isSnooze,
+      snoozeCount: isSnooze ? 1 : 0
+    };
+
+    this.queue.push(queueItem);
+    await this.saveQueue();
+    console.log('Added to queue:', {
+      ...queueItem,
+      scheduledTime: new Date(queueItem.scheduledTime).toLocaleString(),
+      currentTime: now.toLocaleString(),
+      timeDifference: Math.round((scheduledTime - now) / 1000 / 60) + ' minutes'
+    });
+  }
+
+  async addSnoozeToQueue(medication, time, snoozesLeft) {
+    const scheduledTime = new Date();
+    scheduledTime.setSeconds(scheduledTime.getSeconds() + SNOOZE_DURATION);
+
+    const queueItem = {
+      medicationId: medication._id,
+      userId: medication.user_id,
+      name: medication.name,
+      time: time,
+      scheduledTime: scheduledTime.toISOString(),
+      isSnooze: true,
+      snoozeCount: snoozesLeft
+    };
+
+    this.queue.push(queueItem);
+    await this.saveQueue();
+    console.log('Added snooze to queue:', {
+      ...queueItem,
+      scheduledTime: new Date(queueItem.scheduledTime).toLocaleString(),
+      currentTime: new Date().toLocaleString()
+    });
+  }
+
+  async saveQueue() {
+    try {
+      await AsyncStorage.setItem('notification_queue', JSON.stringify(this.queue));
+    } catch (error) {
+      console.error('Error saving notification queue:', error);
+    }
+  }
+
+  async processQueue() {
+    if (this.isProcessing) return;
+    this.isProcessing = true;
+
+    try {
+      const now = new Date();
+      console.log('Processing queue at:', now.toLocaleString());
+      console.log('Current queue:', this.queue.map(item => ({
+        ...item,
+        scheduledTime: new Date(item.scheduledTime).toLocaleString()
+      })));
+
+      const dueItems = this.queue.filter(item => {
+        const scheduledTime = new Date(item.scheduledTime);
+        const isDue = scheduledTime <= now;
+        console.log(`Checking item: ${item.name} at ${scheduledTime.toLocaleString()} - Due: ${isDue}`);
+        return isDue;
+      });
+
+      console.log('Due items:', dueItems.length);
+
+      for (const item of dueItems) {
+        if (item.isSnooze && item.snoozeCount > MAX_SNOOZES) {
+          console.log('Max snoozes reached for:', item.name);
+          continue;
+        }
+
+        await this.showNotification(item);
+        this.queue = this.queue.filter(i => i !== item);
       }
-      
-      // Store all notification IDs for this medication
-      await AsyncStorage.setItem(
-        `medication_notifications_${medication._id}`,
-        JSON.stringify(notifications)
-      );
-      
+
+      await this.saveQueue();
+    } catch (error) {
+      console.error('Error processing notification queue:', error);
+    } finally {
+      this.isProcessing = false;
+    }
+  }
+
+  async showNotification(item) {
+    try {
+      console.log('Showing notification for:', {
+        ...item,
+        scheduledTime: new Date(item.scheduledTime).toLocaleString(),
+        currentTime: new Date().toLocaleString()
+      });
+
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: item.isSnooze ? '🔔 Snoozed Reminder' : '🔔 Medication Reminder',
+          body: `Time to take ${item.name}`,
+          data: {
+            type: 'medication-reminder',
+            medicationId: item.medicationId,
+            time: item.time,
+            name: item.name,
+            user_id: item.userId,
+            isSnooze: item.isSnooze,
+          },
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.MAX,
+          vibrate: [0, 250, 250, 250],
+          categoryIdentifier: 'medication-reminder',
+        },
+        trigger: null, // Show immediately
+      });
+
+      // Store notification data for snooze tracking
+      await NotificationService.storeNotificationData(notificationId, item.medicationId, item.userId, item.time, item.snoozeCount);
+
+      console.log('Successfully showed notification:', notificationId);
+    } catch (error) {
+      console.error('Error showing notification:', error);
+    }
+  }
+
+  startProcessing() {
+    if (this.checkInterval) return;
+    this.checkInterval = setInterval(() => this.processQueue(), QUEUE_CHECK_INTERVAL);
+  }
+
+  stopProcessing() {
+    if (this.checkInterval) {
+      clearInterval(this.checkInterval);
+      this.checkInterval = null;
+    }
+  }
+}
+
+const notificationQueue = new NotificationQueue();
+
+export const NotificationService = {
+  async initialize() {
+    await notificationQueue.initialize();
+    notificationQueue.startProcessing();
+  },
+
+  async scheduleMedicationReminder(medication) {
+    if (Platform.OS === 'web') {
+      console.log('Notifications are not supported on web platform');
+      return false;
+    }
+
+    try {
+      console.log('Starting to schedule reminders for medication:', JSON.stringify(medication, null, 2));
+      const times = medication.times || [];
+
+      for (const time of times) {
+        await notificationQueue.addToQueue(medication, time);
+      }
+
       return true;
     } catch (error) {
       console.error('Error scheduling medication reminder:', error);
@@ -128,7 +266,6 @@ export const NotificationService = {
     }
   },
 
-  // Snooze a notification
   async snoozeNotification(notificationId) {
     if (Platform.OS === 'web') {
       console.log('Notifications are not supported on web platform');
@@ -136,38 +273,39 @@ export const NotificationService = {
     }
 
     try {
-      // Check and update snooze count
-      const snoozeResult = await this.updateSnoozeCount(notificationId);
-      if (!snoozeResult.success) {
+      console.log('Attempting to snooze notification:', notificationId);
+      const notificationData = await this.getNotificationData(notificationId);
+      
+      if (!notificationData) {
+        return { success: false, message: 'Notification data not found' };
+      }
+
+      const medication = await api.getMedications(notificationData.userId);
+      const currentMed = medication.find((m) => m._id === notificationData.medicationId);
+
+      if (!currentMed) {
+        return { success: false, message: 'Medication not found' };
+      }
+
+      // Check if we've reached max snoozes
+      if (notificationData.snoozesLeft <= 0) {
         return { 
           success: false, 
-          message: 'Maximum snoozes reached (2 times). Please take your medication.' 
+          message: 'Maximum snoozes reached. Please take your medication or mark it as missed.' 
         };
       }
 
-      // Get the original notification
-      const notification = await Notifications.getNotificationAsync(notificationId);
-      if (!notification) {
-        return { success: false, message: 'Notification not found' };
-      }
-
-      // Schedule a new notification for 10 minutes later
-      const newNotificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          ...notification.request.content,
-          title: '🔔 Snoozed Reminder',
-          body: `${notification.request.content.body} (Snooze ${2 - snoozeResult.snoozesLeft}/2)`,
-        },
-        trigger: { seconds: SNOOZE_DURATION * 60 },
-      });
-
-      // Store data for the new notification
-      await this.storeNotificationData(newNotificationId, notification.request.content.data.medicationId);
+      // Add snooze to queue with decremented snoozesLeft
+      const newSnoozesLeft = notificationData.snoozesLeft - 1;
+      await notificationQueue.addSnoozeToQueue(currentMed, notificationData.time, newSnoozesLeft);
+      
+      // Update snooze count in storage for this notification
+      notificationData.snoozesLeft = newSnoozesLeft;
+      await this.storeNotificationData(notificationId, notificationData.medicationId, notificationData.userId, notificationData.time, notificationData.snoozesLeft);
 
       return { 
-        success: true, 
-        snoozesLeft: snoozeResult.snoozesLeft,
-        newNotificationId
+        success: true,
+        message: `Medication snoozed for ${SNOOZE_DURATION} seconds. ${notificationData.snoozesLeft} snoozes remaining.`
       };
     } catch (error) {
       console.error('Error snoozing notification:', error);
@@ -175,7 +313,6 @@ export const NotificationService = {
     }
   },
 
-  // Mark medication as taken
   async markMedicationAsTaken(notificationId) {
     if (Platform.OS === 'web') {
       console.log('Notifications are not supported on web platform');
@@ -183,48 +320,128 @@ export const NotificationService = {
     }
 
     try {
-      // Get notification data to clean up storage
-      const data = await this.getNotificationData(notificationId);
-      if (data) {
-        await AsyncStorage.removeItem(`notification_${notificationId}`);
+      console.log('Marking medication as taken for notification:', notificationId);
+      const notificationData = await this.getNotificationData(notificationId);
+      
+      if (!notificationData) {
+        return { success: false, message: 'Notification data not found' };
       }
 
-      // Cancel the notification
-      await Notifications.cancelScheduledNotificationAsync(notificationId);
-      return { success: true };
+      const medication = await api.getMedications(notificationData.userId);
+      const currentMed = medication.find((m) => m._id === notificationData.medicationId);
+
+      if (!currentMed) {
+        return { success: false, message: 'Medication not found' };
+      }
+
+      await api.updateMedication(notificationData.medicationId, {
+        ...currentMed,
+        lastTaken: new Date().toISOString(),
+      }, notificationData.userId);
+
+      // Remove from queue
+      notificationQueue.queue = notificationQueue.queue.filter(
+        item => item.medicationId !== notificationData.medicationId || item.time !== notificationData.time
+      );
+      await notificationQueue.saveQueue();
+
+      return { 
+        success: true,
+        message: `${currentMed.name} marked as taken. Next reminder will be at ${notificationData.time} tomorrow.`
+      };
     } catch (error) {
       console.error('Error marking medication as taken:', error);
       return { success: false, message: error.message };
     }
   },
 
-  // Cancel all notifications for a medication
-  async cancelMedicationNotifications(medicationId) {
+  async markMedicationAsMissed(notificationId) {
+    if (Platform.OS === 'web') {
+      console.log('Notifications are not supported on web platform');
+      return { success: true };
+    }
+
+    try {
+      console.log('Marking medication as missed for notification:', notificationId);
+      const notificationData = await this.getNotificationData(notificationId);
+      
+      if (!notificationData) {
+        return { success: false, message: 'Notification data not found' };
+      }
+
+      const medication = await api.getMedications(notificationData.userId);
+      const currentMed = medication.find((m) => m._id === notificationData.medicationId);
+
+      if (!currentMed) {
+        return { success: false, message: 'Medication not found' };
+      }
+
+      await api.updateMedication(notificationData.medicationId, {
+        ...currentMed,
+        lastMissed: new Date().toISOString(),
+      }, notificationData.userId);
+
+      // Remove from queue
+      notificationQueue.queue = notificationQueue.queue.filter(
+        item => item.medicationId !== notificationData.medicationId || item.time !== notificationData.time
+      );
+      await notificationQueue.saveQueue();
+
+      return { 
+        success: true,
+        message: `${currentMed.name} marked as missed. Next reminder will be at ${notificationData.time} tomorrow.`
+      };
+    } catch (error) {
+      console.error('Error marking medication as missed:', error);
+      return { success: false, message: error.message };
+    }
+  },
+
+  async cancelMedicationNotifications(medicationId, userId) {
     if (Platform.OS === 'web') {
       console.log('Notifications are not supported on web platform');
       return true;
     }
 
     try {
-      // Get all notification IDs for this medication
-      const notificationIds = JSON.parse(
-        await AsyncStorage.getItem(`medication_notifications_${medicationId}`)
+      notificationQueue.queue = notificationQueue.queue.filter(
+        item => !(item.medicationId === medicationId && item.userId === userId)
       );
-
-      if (notificationIds) {
-        // Cancel each notification and clean up storage
-        await Promise.all(notificationIds.map(async (id) => {
-          await Notifications.cancelScheduledNotificationAsync(id);
-          await AsyncStorage.removeItem(`notification_${id}`);
-        }));
-        
-        // Clean up medication notifications storage
-        await AsyncStorage.removeItem(`medication_notifications_${medicationId}`);
-      }
+      await notificationQueue.saveQueue();
       return true;
     } catch (error) {
       console.error('Error canceling medication notifications:', error);
       return false;
+    }
+  },
+
+  async storeNotificationData(notificationId, medicationId, userId, time, snoozesLeft = MAX_SNOOZES) {
+    try {
+      const key = `notification_${notificationId}`;
+      const data = {
+        medicationId,
+        userId,
+        time,
+        snoozesLeft,
+        lastSnoozeTime: null,
+      };
+      await AsyncStorage.setItem(key, JSON.stringify(data));
+      console.log('Stored notification data:', data);
+    } catch (error) {
+      console.error('Error storing notification data:', error);
+    }
+  },
+
+  async getNotificationData(notificationId) {
+    try {
+      const key = `notification_${notificationId}`;
+      const data = await AsyncStorage.getItem(key);
+      const parsedData = data ? JSON.parse(data) : null;
+      console.log('Retrieved notification data:', parsedData);
+      return parsedData;
+    } catch (error) {
+      console.error('Error getting notification data:', error);
+      return null;
     }
   },
 }; 

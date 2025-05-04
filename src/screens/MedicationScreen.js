@@ -12,6 +12,7 @@ import { theme } from '../theme/theme';
 import { useContext } from 'react';
 import { UserContext } from '../../App';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { NotificationService } from '../services/notifications';
 
 function MedicationScreen() {
   const insets = useSafeAreaInsets();
@@ -109,7 +110,13 @@ function MedicationScreen() {
         notes: newMedication.notes.trim() || ''
       };
 
-      await api.createMedication(medicationData);
+      const response = await api.createMedication(medicationData);
+      
+      // Schedule notifications for the new medication
+      if (Platform.OS !== 'web') {
+        await NotificationService.scheduleMedicationReminder(response);
+      }
+
       await loadMedications();
       setNewMedication({ name: '', frequency: 1, times: [''], notes: '' });
       setShowAddDialog(false);
@@ -154,7 +161,18 @@ function MedicationScreen() {
         notes: editingMedication.notes.trim() || ''
       };
 
-      await api.updateMedication(editingMedication._id, medicationData, userId);
+      // Cancel existing notifications
+      if (Platform.OS !== 'web') {
+        await NotificationService.cancelMedicationNotifications(editingMedication._id);
+      }
+
+      const response = await api.updateMedication(editingMedication._id, medicationData, userId);
+      
+      // Schedule new notifications
+      if (Platform.OS !== 'web') {
+        await NotificationService.scheduleMedicationReminder(response);
+      }
+
       await loadMedications();
       setShowEditDialog(false);
       setEditingMedication(null);
@@ -183,6 +201,12 @@ function MedicationScreen() {
               setIsLoading(true);
               setError(null);
               const userId = getUserIdSafe();
+              
+              // Cancel notifications before deleting
+              if (Platform.OS !== 'web') {
+                await NotificationService.cancelMedicationNotifications(medicationId);
+              }
+              
               await api.deleteMedication(medicationId, userId);
               await loadMedications();
             } catch (error) {
