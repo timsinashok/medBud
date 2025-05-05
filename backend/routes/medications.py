@@ -16,6 +16,7 @@ def create_medication(request: Request, user_id: str, medication: MedicationCrea
     
     medication_data = medication.dict()
     medication_data["user_id"] = user_id
+    medication_data["adherence"] = 0  # Initialize adherence count to 0
     utc_now = datetime.now(timezone.utc)
     gst_now = utc_now + timedelta(hours=4)
     medication_data["created_at"] = gst_now
@@ -111,3 +112,37 @@ def delete_medication(request: Request, medication_id: str, user_id: str):
         return {"message": "Medication deleted successfully"}
     
     raise HTTPException(status_code=500, detail="Failed to delete medication")
+
+@router.post("/increment-adherence", response_description="Increment medication adherence")
+def increment_medication_adherence(request: Request, medication_id: str, user_id: str):
+    """Increment the adherence count for a specific medication"""
+    if not validate_object_id(medication_id) or not validate_object_id(user_id):
+        raise HTTPException(status_code=400, detail="Invalid ID format")
+    
+    medications_collection = request.app.database.get_collection("medications")
+    
+    # Ensure the medication belongs to the user
+    medication = medications_collection.find_one({
+        "_id": ObjectId(medication_id),
+        "user_id": user_id
+    })
+    
+    if not medication:
+        raise HTTPException(status_code=404, detail="Medication not found or does not belong to user")
+    
+    # Increment the adherence field, creating it with value 1 if it doesn't exist
+    result = medications_collection.update_one(
+        {"_id": ObjectId(medication_id)},
+        {"$inc": {"adherence": 1}}
+    )
+    
+    if result.modified_count == 1:
+        updated_medication = medications_collection.find_one({"_id": ObjectId(medication_id)})
+        # Convert ObjectId to string
+        updated_medication["_id"] = str(updated_medication["_id"])
+        return updated_medication
+    
+    raise HTTPException(status_code=500, detail="Failed to update medication adherence")
+
+
+
