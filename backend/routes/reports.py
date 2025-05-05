@@ -66,7 +66,7 @@ def generate_report(
         {
             "name": m["name"],
             "frequency": m["frequency"],
-            "adherence": m["adherence"]
+            "adherence": m.get("adherence", 0)
         } for m in medications
     ]
     
