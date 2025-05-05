@@ -59,11 +59,14 @@ def generate_report(
             "timestamp": s["timestamp"].isoformat() if isinstance(s["timestamp"], datetime) else s["timestamp"]
         } for s in symptoms
     ]
+
+
     
     medication_data = [
         {
             "name": m["name"],
-            "frequency": m["frequency"]
+            "frequency": m["frequency"],
+            "adherence": m["adherence"]
         } for m in medications
     ]
     
@@ -94,6 +97,7 @@ def generate_report(
         - Keep paragraphs short and concise for better PDF rendering
         - Use clear section headers with proper hierarchical structure
         - Include a summary section at the beginning
+        - Adherence is the number of times user has taken the medication
 
         The output should be in markdown format that can be easily converted to PDFMake-compatible structure."""
 
