@@ -128,7 +128,7 @@ class NotificationQueue {
       time: time,
       scheduledTime: scheduledTime.toISOString(),
       isSnooze: true,
-      snoozeCount: snoozesLeft
+      snoozeCount: MAX_SNOOZES - snoozesLeft + 1  // Convert from snoozes left to snooze count
     };
 
     this.queue.push(queueItem);
@@ -136,7 +136,8 @@ class NotificationQueue {
     console.log('Added snooze to queue:', {
       ...queueItem,
       scheduledTime: new Date(queueItem.scheduledTime).toLocaleString(),
-      currentTime: new Date().toLocaleString()
+      currentTime: new Date().toLocaleString(),
+      snoozesLeft: snoozesLeft
     });
   }
 
@@ -170,11 +171,7 @@ class NotificationQueue {
       console.log('Due items:', dueItems.length);
 
       for (const item of dueItems) {
-        if (item.isSnooze && item.snoozeCount > MAX_SNOOZES) {
-          console.log('Max snoozes reached for:', item.name);
-          continue;
-        }
-
+        // Removing the MAX_SNOOZES check here since we're tracking that elsewhere
         await this.showNotification(item);
         this.queue = this.queue.filter(i => i !== item);
       }
@@ -216,7 +213,12 @@ class NotificationQueue {
       });
 
       // Store notification data for snooze tracking
-      await NotificationService.storeNotificationData(notificationId, item.medicationId, item.userId, item.time, item.snoozeCount);
+      // If it's a snooze, we need to get the current snoozes left
+      const snoozesLeft = item.isSnooze 
+        ? MAX_SNOOZES - item.snoozeCount 
+        : MAX_SNOOZES;
+      
+      await NotificationService.storeNotificationData(notificationId, item.medicationId, item.userId, item.time, snoozesLeft);
 
       console.log('Successfully showed notification:', notificationId);
     } catch (error) {
@@ -227,6 +229,8 @@ class NotificationQueue {
   startProcessing() {
     if (this.checkInterval) return;
     this.checkInterval = setInterval(() => this.processQueue(), QUEUE_CHECK_INTERVAL);
+    // Process immediately on start
+    this.processQueue();
   }
 
   stopProcessing() {
@@ -300,12 +304,19 @@ export const NotificationService = {
       await notificationQueue.addSnoozeToQueue(currentMed, notificationData.time, newSnoozesLeft);
       
       // Update snooze count in storage for this notification
-      notificationData.snoozesLeft = newSnoozesLeft;
-      await this.storeNotificationData(notificationId, notificationData.medicationId, notificationData.userId, notificationData.time, notificationData.snoozesLeft);
+      await this.storeNotificationData(
+        notificationId, 
+        notificationData.medicationId, 
+        notificationData.userId, 
+        notificationData.time, 
+        newSnoozesLeft
+      );
+
+      console.log(`Snooze successful, ${newSnoozesLeft} snoozes remaining.`);
 
       return { 
         success: true,
-        message: `Medication snoozed for ${SNOOZE_DURATION} seconds. ${notificationData.snoozesLeft} snoozes remaining.`
+        message: `Medication snoozed for ${SNOOZE_DURATION} seconds. ${newSnoozesLeft} snoozes remaining.`
       };
     } catch (error) {
       console.error('Error snoozing notification:', error);
@@ -423,7 +434,7 @@ export const NotificationService = {
         userId,
         time,
         snoozesLeft,
-        lastSnoozeTime: null,
+        lastSnoozeTime: new Date().toISOString(),
       };
       await AsyncStorage.setItem(key, JSON.stringify(data));
       console.log('Stored notification data:', data);
@@ -444,4 +455,4 @@ export const NotificationService = {
       return null;
     }
   },
-}; 
+};

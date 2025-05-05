@@ -5,7 +5,13 @@ import { NotificationService } from '../services/notifications';
 
 export default function NotificationHandler() {
   useEffect(() => {
-    setupNotifications();
+    const setupResult = setupNotifications();
+    return () => {
+      // Cleanup notification subscription if it was set up
+      if (setupResult && setupResult.subscription) {
+        setupResult.subscription.remove();
+      }
+    };
   }, []);
 
   const setupNotifications = async () => {
@@ -80,6 +86,7 @@ export default function NotificationHandler() {
           
           switch (actionIdentifier) {
             case 'mark-taken':
+            case Notifications.DEFAULT_ACTION_IDENTIFIER + 'mark-taken': // For better cross-platform support
               result = await NotificationService.markMedicationAsTaken(notification.request.identifier);
               if (result.success) {
                 Alert.alert('Medication Status', result.message);
@@ -88,6 +95,7 @@ export default function NotificationHandler() {
               }
               break;
             case 'snooze':
+            case Notifications.DEFAULT_ACTION_IDENTIFIER + 'snooze': // For better cross-platform support
               result = await NotificationService.snoozeNotification(notification.request.identifier);
               if (result.success) {
                 Alert.alert('Snooze', result.message);
@@ -96,6 +104,7 @@ export default function NotificationHandler() {
               }
               break;
             case 'mark-missed':
+            case Notifications.DEFAULT_ACTION_IDENTIFIER + 'mark-missed': // For better cross-platform support
               result = await NotificationService.markMedicationAsMissed(notification.request.identifier);
               if (result.success) {
                 Alert.alert('Medication Status', result.message);
@@ -104,18 +113,27 @@ export default function NotificationHandler() {
               }
               break;
             default:
-              // Handle default tap
+              // Handle default tap - show the dialog with options
+              console.log('Default tap detected with action:', actionIdentifier);
               showMedicationReminderDialog(notification);
               break;
           }
         }
       });
 
-      return () => {
-        subscription.remove();
+      // Also set up a handler for notifications received while the app is in the foreground
+      const foregroundSubscription = Notifications.addNotificationReceivedListener((notification) => {
+        console.log('Notification received in foreground:', notification);
+        // You can choose to show an in-app alert here instead of relying on the OS notification
+      });
+
+      return {
+        subscription,
+        foregroundSubscription,
       };
     } catch (error) {
       console.error('Error setting up notifications:', error);
+      return null;
     }
   };
 
@@ -167,4 +185,4 @@ export default function NotificationHandler() {
   };
 
   return null;
-} 
+}
