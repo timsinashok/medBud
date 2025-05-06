@@ -54,6 +54,7 @@ def generate_report(
     # Prepare data for the report
     symptom_data = [
         {
+            "name": s["name"],
             "details": s["details"],
             "severity": s["severity"],
             "timestamp": s["timestamp"].isoformat() if isinstance(s["timestamp"], datetime) else s["timestamp"]
