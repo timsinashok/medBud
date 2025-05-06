@@ -173,7 +173,9 @@ export default function App() {
 
   // Add getUserId function to properly get the current user ID
   const getUserId = () => {
-    return user?.id || null;
+    // For development, ensure there's always a valid user ID
+    // In production, you would want to handle this differently
+    return user?.id || '67ebd559c9003543caba959c'; // Fallback for development
   };
 
   useEffect(() => {
