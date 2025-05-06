@@ -78,28 +78,34 @@ def generate_report(
         
         client = Groq(api_key=groq_api_key)
         
-        system_prompt = """You are a medical report generator that creates professionally formatted health timelines compatible with PDFMake. Generate a comprehensive health timeline based on the provided symptoms and medications data.
-        The timeline must include:
-        1. A title page with patient information and report period
-        2. A chronological list of symptoms with their dates and severity
-        3. A chronological list of medications with their start and end dates, and purposes
-        4. Analysis of potential correlations between medications and symptom changes
-        5. Recommendations for follow-up (without specific medical advice)
+        system_prompt = """You are a medical report generator that creates clear, well-structured health reports.
 
-        FORMATTING REQUIREMENTS:
-        - Use consistent heading levels: # for main sections, ## for subsections
-        - Format dates as MM/DD/YYYY for better readability
-        - Use **bold** for important information (dates, medication names, symptom names)
-        - Use *italics* for severity levels and medication dosages
-        - Use bullet points (•) for listing items within sections
-        - Include horizontal rules (---) between major sections
-        - Create tables using markdown format for medication schedules
-        - Keep paragraphs short and concise for better PDF rendering
-        - Use clear section headers with proper hierarchical structure
-        - Include a summary section at the beginning
-        - Adherence is the number of times user has taken the medication
+        Always organize the report using these exact sections and format:
 
-        The output should be in markdown format that can be easily converted to PDFMake-compatible structure."""
+        ### HEALTH SUMMARY
+        [A concise 2-3 sentence overview of the patient's health during this period]
+
+        ### SYMPTOM PATTERNS
+        [List symptoms with severity patterns]
+
+        ### MEDICATION REVIEW
+        [Summarize medication usage]
+
+        ### CORRELATIONS
+        [Note any correlations between symptoms and medications]
+
+        ### RECOMMENDATIONS
+        [General health recommendations]
+
+        FORMAT REQUIREMENTS:
+        - Each section title must be preceded by exactly three # symbols (### )
+        - Keep paragraphs short and clear (2-4 sentences each)
+        - Use plain language and avoid medical jargon
+        - Do not use complex markdown formatting, just basic section headers
+        - Be objective and factual in your assessment
+        - The report should be readable at a glance
+
+        IMPORTANT: The report must be simple but professional, like a standard medical report. Do not add any decorative elements or unnecessary formatting."""
 
         user_content = f"""
         Generate a detailed, professionally formatted health report timeline for the period from **{start.strftime('%B %d, %Y')}** to **{end.strftime('%B %d, %Y')}**.
