@@ -3,44 +3,21 @@ const BASE_URL = 'https://medbud.onrender.com';
 export const api = {
   // Symptoms
   async createSymptom(symptomData, user_id) {
-    if (!user_id) {
-      console.error('Missing user_id in createSymptom call');
-      throw new Error('User ID is required to create a symptom');
-    }
-
-    console.log(`Calling API: POST ${BASE_URL}/api/symptoms/?user_id=${user_id}`);
-    console.log('Request body:', JSON.stringify(symptomData));
+    const response = await fetch(`${BASE_URL}/api/symptoms?user_id=${user_id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(symptomData),
+    });
     
-    try {
-      const response = await fetch(`${BASE_URL}/api/symptoms/?user_id=${user_id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(symptomData),
-      });
-      
-      // For non-200 responses, attempt to parse error details from JSON
-      if (!response.ok) {
-        let errorMsg = `HTTP error! status: ${response.status}`;
-        try {
-          const errorData = await response.json();
-          errorMsg = errorData.detail || errorData.message || errorMsg;
-        } catch (e) {
-          // If parsing JSON fails, use the default error message
-          console.error('Failed to parse error response:', e);
-        }
-        console.error('API Error:', errorMsg);
-        throw new Error(errorMsg);
-      }
-      
-      const data = await response.json();
-      console.log('API Response:', data);
-      return data;
-    } catch (error) {
-      console.error('API call failed:', error);
-      throw error;
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
     }
+    
+    return data;
   },
 
   async getSymptoms(userId, skip = 0, limit = 100) {
@@ -49,31 +26,15 @@ export const api = {
       return []; // Return empty array if no userId
     }
     
-    console.log(`Calling API: GET ${BASE_URL}/api/symptoms/${userId}?skip=${skip}&limit=${limit}`);
+    const response = await fetch(`${BASE_URL}/api/symptoms/${userId}?skip=${skip}&limit=${limit}`);
     
-    try {
-      const response = await fetch(`${BASE_URL}/api/symptoms/${userId}?skip=${skip}&limit=${limit}`);
-      
-      // For non-200 responses, attempt to parse error details from JSON
-      if (!response.ok) {
-        let errorMsg = `HTTP error! status: ${response.status}`;
-        try {
-          const errorData = await response.json();
-          errorMsg = errorData.detail || errorData.message || errorMsg;
-        } catch (e) {
-          // If parsing JSON fails, use the default error message
-          console.error('Failed to parse error response:', e);
-        }
-        console.error('API Error:', errorMsg);
-        throw new Error(errorMsg);
-      }
-      
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('API call failed:', error);
-      throw error;
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
     }
+    
+    return data;
   },
 
   // Medications
@@ -150,7 +111,7 @@ export const api = {
     const params = new URLSearchParams();
     if (startDate) params.append('start_date', startDate);
     if (endDate) params.append('end_date', endDate);
-    params.append('report_format', format);
+    // params.append('report_format', format);
   
     if (params.toString()) {
       url += `?${params.toString()}`;

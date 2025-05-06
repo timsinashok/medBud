@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Image, ScrollView, TouchableOpacity, Platform, Alert } from 'react-native';
 import { 
   Button, Card, Title, Paragraph, Divider, Text,
-  ActivityIndicator, Snackbar, Surface, Chip
+  ActivityIndicator, Snackbar, Surface, Chip,
+  Dialog, Portal
 } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from 'react-native-paper-dates';
 import NetInfo from '@react-native-community/netinfo';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { api } from '../services/api';
 import { theme } from '../theme/theme';
 import { useContext } from 'react';
@@ -53,6 +57,8 @@ function ReportScreen() {
   const [logoDataUrl, setLogoDataUrl] = useState(null);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [showPdfOptions, setShowPdfOptions] = useState(false);
+  const [savedPdfPath, setSavedPdfPath] = useState(null);
 
   // Setup network state listeners
   useEffect(() => {
@@ -154,6 +160,94 @@ function ReportScreen() {
       setReport(null);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const getFileNameWithDate = () => {
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    return `health-report-${dateStr}.pdf`;
+  };
+
+  const getDownloadPath = () => {
+    // Get the appropriate directory for the platform
+    return `${FileSystem.documentDirectory}${getFileNameWithDate()}`;
+  };
+
+  const savePdfToDevice = async (pdfBase64) => {
+    try {
+      const filePath = getDownloadPath();
+      
+      // Write the base64 PDF data to a file
+      await FileSystem.writeAsStringAsync(filePath, pdfBase64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      
+      // Update state with the saved file path
+      setSavedPdfPath(filePath);
+      
+      return filePath;
+    } catch (error) {
+      console.error('Error saving PDF:', error);
+      throw error;
+    }
+  };
+
+  const viewPdf = async (filePath) => {
+    try {
+      // Check if sharing is available
+      const canShare = await Sharing.isAvailableAsync();
+      
+      if (canShare) {
+        // Share the PDF file which allows viewing it
+        await Sharing.shareAsync(filePath, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'View Health Report',
+          UTI: 'com.adobe.pdf', // iOS-specific
+        });
+      } else {
+        // On Android, we can use IntentLauncher as a fallback
+        if (Platform.OS === 'android') {
+          await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+            data: filePath,
+            flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+            type: 'application/pdf',
+          });
+        } else {
+          // For iOS, if sharing isn't available, show an error
+          Alert.alert(
+            'Cannot Open PDF',
+            'Your device cannot open the PDF file directly. Please use the Share option to open it in another app.'
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error viewing PDF:', error);
+      setError('Could not open the PDF. Please try again.');
+    }
+  };
+
+  const sharePdf = async (filePath) => {
+    try {
+      // Check if sharing is available
+      const canShare = await Sharing.isAvailableAsync();
+      
+      if (canShare) {
+        // Share the PDF file
+        await Sharing.shareAsync(filePath, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Share Health Report',
+          UTI: 'com.adobe.pdf', // iOS-specific
+        });
+      } else {
+        Alert.alert(
+          'Sharing Not Available',
+          'Sharing is not available on this device.'
+        );
+      }
+    } catch (error) {
+      console.error('Error sharing PDF:', error);
+      setError('Could not share the PDF. Please try again.');
     }
   };
 
@@ -384,12 +478,43 @@ function ReportScreen() {
 
       // Create PDF with custom fonts
       const pdf = pdfMake.createPdf(docDefinition, null, fonts);
-      pdf.download('health-report.pdf');
+      
+      // Get PDF as base64
+      pdf.getBase64(async (base64Data) => {
+        try {
+          // Save the PDF to the device
+          const filePath = await savePdfToDevice(base64Data);
+          
+          // Show success message and options to view or share
+          Alert.alert(
+            'PDF Saved Successfully',
+            `Your report has been saved as ${getFileNameWithDate()}`,
+            [
+              { 
+                text: 'Open', 
+                onPress: () => viewPdf(filePath) 
+              },
+              { 
+                text: 'Share', 
+                onPress: () => sharePdf(filePath) 
+              },
+              { 
+                text: 'Close', 
+                style: 'cancel' 
+              }
+            ]
+          );
+        } catch (error) {
+          console.error('Error in PDF export process:', error);
+          setError(`Failed to save PDF: ${error.message}`);
+        } finally {
+          setIsPdfExporting(false);
+        }
+      });
 
     } catch (error) {
       console.error('Error generating PDF:', error);
       setError(`Failed to export PDF: ${error.message}`);
-    } finally {
       setIsPdfExporting(false);
     }
   };
@@ -422,6 +547,14 @@ function ReportScreen() {
       month: 'short', 
       day: 'numeric' 
     });
+  };
+
+  const handleExportButtonPress = () => {
+    if (savedPdfPath) {
+      setShowPdfOptions(true);
+    } else {
+      exportToPdf();
+    }
   };
 
   return (
@@ -531,7 +664,7 @@ function ReportScreen() {
                 </View>
                 <Button 
                   mode="contained" 
-                  onPress={exportToPdf}
+                  onPress={handleExportButtonPress}
                   loading={isPdfExporting}
                   disabled={isPdfExporting}
                   icon="download"
@@ -539,7 +672,7 @@ function ReportScreen() {
                   style={styles.exportButton}
                   labelStyle={styles.exportButtonLabel}
                 >
-                  Export PDF
+                  {savedPdfPath ? 'View PDF' : 'Export PDF'}
                 </Button>
               </View>
               
@@ -584,6 +717,51 @@ function ReportScreen() {
         startLabel="Start date"
         endLabel="End date"
       />
+
+      <Portal>
+        <Dialog
+          visible={showPdfOptions}
+          onDismiss={() => setShowPdfOptions(false)}
+          style={styles.dialog}
+        >
+          <Dialog.Title>PDF Options</Dialog.Title>
+          <Dialog.Content>
+            <Text>What would you like to do with your health report?</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button 
+              onPress={() => {
+                setShowPdfOptions(false);
+                viewPdf(savedPdfPath);
+              }}
+              icon="eye"
+              style={styles.dialogButton}
+            >
+              View PDF
+            </Button>
+            <Button 
+              onPress={() => {
+                setShowPdfOptions(false);
+                sharePdf(savedPdfPath);
+              }}
+              icon="share-variant"
+              style={styles.dialogButton}
+            >
+              Share
+            </Button>
+            <Button 
+              onPress={() => {
+                setShowPdfOptions(false);
+                exportToPdf();
+              }}
+              icon="file-export"
+              style={styles.dialogButton}
+            >
+              Export New
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
 
       <Snackbar
         visible={!!error}
@@ -778,6 +956,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     ...theme.typography.medium,
     marginLeft: theme.spacing.xs,
+  },
+  dialog: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.roundness,
+  },
+  dialogButton: {
+    marginHorizontal: theme.spacing.xs,
   },
 });
 

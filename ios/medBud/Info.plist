@@ -37,6 +37,8 @@
     <string>12.0</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
     <key>NSAppTransportSecurity</key>
     <dict>
       <key>NSAllowsArbitraryLoads</key>
@@ -44,6 +46,14 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>MedBud needs access to your documents folder to save health reports as PDF files.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>MedBud needs access to save PDF reports to your photo library.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>MedBud needs access to your photo library to save reports.</string>
+    <key>UIFileSharingEnabled</key>
+    <true/>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
     <key>UIRequiredDeviceCapabilities</key>
