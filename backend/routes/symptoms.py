@@ -9,7 +9,7 @@ from utils import validate_object_id
 
 router = APIRouter()
 
-@router.post("/", response_description="Add new symptom")
+@router.post("", response_description="Add new symptom")
 def create_symptom(request: Request, user_id: str, symptom: SymptomCreate = Body(...)):
     """Add a new symptom for a specific user"""
     if not validate_object_id(user_id):
