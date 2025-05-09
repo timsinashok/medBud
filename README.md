@@ -57,8 +57,8 @@ We really build tools that help people - especially those with chronic condition
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/medbud.git
-cd medbud
+git clone https://github.com/decipher6/medBud.git
+cd medBud
 ```
 
 2. Backend Setup:
@@ -70,8 +70,9 @@ pip install -r requirements.txt
 ```
 
 3. Frontend Setup:
+
+FYI frontend is medBud/
 ```bash
-cd frontend
 npm install
 # or
 yarn install
@@ -107,7 +108,7 @@ GROQ_API_KEY=your_groq_api_key
 
 ### Frontend Environment Variables
 ```env
-API_URL=http://localhost:8000
+REACT_APP_BACKEND_URL=http://localhost:8000
 ```
 
 ## API Documentation
@@ -120,14 +121,6 @@ The API documentation is available at `http://localhost:8000/docs` when running 
 ```bash
 cd backend
 pytest tests.py --cov=main --cov-report=term-missing
-```
-
-### Frontend Tests
-```bash
-cd frontend
-npm test
-# or
-yarn test
 ```
 
 ## Contributing
@@ -156,8 +149,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - MongoDB for database services
 - FastAPI for the backend framework
 - React Native community for the frontend framework
-
-## Contact
-
-Your Name - [@yourtwitter](https://twitter.com/yourtwitter)
-Project Link: [https://github.com/yourusername/medbud](https://github.com/yourusername/medbud)
