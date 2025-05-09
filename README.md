@@ -134,6 +134,8 @@ cd medBud
 npx expo start
 ```
 
+Note: There’s a known bug where, after logging in, you may need to reload the page for the data contents to appear correctly on your profile.
+
 ---
 
 ## API Documentation
