@@ -79,7 +79,7 @@ yarn install
 ```
 
 4. Environment Configuration:
-   - Create `.env` files in both frontend and backend directories
+   - Create `.env` files in both frontend(root directory) and backend directories
    - Configure necessary environment variables (see Configuration section)
 
 ### Running the Application
@@ -119,9 +119,20 @@ The API documentation is available at `http://localhost:8000/docs` when running 
 ### Backend Tests
 ```bash
 cd backend
-pytest tests.py --cov=main --cov-report=term-missing
+pytest tests.py --cov=main --cov-report=term-missing --cov-report=html
 ```
 
+This will create a `htmlcov/` folder with a detailed HTML report
+
+### To open the report:
+
+After the test finishes, open the report in your browser:
+
+```bash
+open htmlcov/index.html  # macOS
+xdg-open htmlcov/index.html  # Linux
+start htmlcov\index.html  # Windows
+```
 ## Contributing
 
 1. Fork the repository
