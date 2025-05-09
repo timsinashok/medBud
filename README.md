@@ -92,8 +92,7 @@ uvicorn main:app --reload
 
 2. Start the Frontend:
 ```bash
-cd frontend
-expo start
+npx expo start
 ```
 
 ## Configuration
