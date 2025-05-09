@@ -6,7 +6,7 @@
 MedBud envisions a smoother, more effective doctor-patient interaction by giving users the tools to track their health and bring clear, structured information to every appointment.
 
 ### Our Mission
-We build tools that help people - especially those with chronic conditions, log their symptoms, track medications, and generate comprehensive health reports. By doing so, MedBud reduces the burden of having to explain everything from scratch and helps doctors get a clearer picture, faster.
+We really build tools that help people - especially those with chronic conditions, log their symptoms, track medications, and generate comprehensive health reports. By doing so, MedBud reduces the burden of having to explain everything from scratch and helps doctors get a clearer picture, faster.
 
 ## Features
 
