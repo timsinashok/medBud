@@ -122,6 +122,9 @@ REACT_APP_BACKEND_URL=http://localhost:8000
 
 ### Start the Backend
 
+You can skip this as we already have deployed version of the backend on medbud.onrender.com 
+FYI, the backend is deployed on serverless platform on free tier so it might take some time to start on first run.
+
 ```bash
 cd backend
 uvicorn main:app --reload
@@ -129,8 +132,10 @@ uvicorn main:app --reload
 
 ### On a new terminal, start the Frontend
 
+To run this using your backend running on http://localhost:8000, you should install `react-dotenv` using `npm install react-dotenv` and run, however, since we faced issues with recent expo update we have hardcorded our deployed backend url in the frontend. 
+
 ```bash
-cd medBud
+cd medBud # fyi this is the root of the project
 npx expo start
 ```
 
