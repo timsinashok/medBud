@@ -1,8 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-let BASE_URL = 'http://127.0.0.1:8000';
-API_URL = BASE_URL + "/api/auth";
+const API_URL = 'https://medbud.onrender.com/api/auth';
 const USER_DATA_KEY = 'user_data';
 
 export const login = async (username, password) => {
