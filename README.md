@@ -1,103 +1,108 @@
-# MedBud - Your Personal Health Companion
+# MedBud – Your Personal Health Companion
 
-## Project Vision & Mission
+## Overview
 
-### Our Vision
-MedBud envisions a smoother, more effective doctor-patient interaction by giving users the tools to track their health and bring clear, structured information to every appointment.
+**MedBud** is a health-tracking platform designed to empower individuals—especially those managing chronic conditions—to take control of their health journey. By providing tools for structured symptom tracking, medication management, and automated report generation, MedBud helps users communicate more effectively with their healthcare providers.
 
-### Our Mission
-We really build tools that help people - especially those with chronic conditions, log their symptoms, track medications, and generate comprehensive health reports. By doing so, MedBud reduces the burden of having to explain everything from scratch and helps doctors get a clearer picture, faster.
+---
+
+## Vision
+
+We envision a future where every patient walks into a doctor’s office equipped with accurate, well-organized health data. MedBud reduces the burden of remembering and explaining complex medical histories and enables better, faster, and more personalized care.
+
+---
 
 ## Features
 
 ### Symptom Tracking
-- Log daily symptoms with severity levels
-- Add detailed notes and observations
-- Track symptom patterns over time
-- Filter and search symptom history
+
+* Log daily symptoms with severity levels and detailed notes
+* Track patterns and trends over time
+* Filter and search symptom history
 
 ### Medication Management
-- Set up medication schedules
-- Track adherence to medication plans
-- Receive reminders for medication times
-- Log medication side effects
+
+* Set and manage medication schedules
+* Track adherence and side effects
+* Get reminders for medication times
 
 ### Health Reports
-- Generate comprehensive health reports
-- AI-powered insights and analysis
-- Export reports in PDF format
-- Share reports with healthcare providers
+
+* Generate structured health summaries
+* AI-powered insights and natural language summaries
+* Export reports as PDF and share with providers
+
+---
 
 ## Tech Stack
 
 ### Frontend (React Native)
-- React Native for cross-platform mobile development
-- Expo for simplified development and deployment
-- React Navigation for screen management
-- AsyncStorage for local data persistence
-- React Native Paper for UI components
+
+* **React Native** for cross-platform mobile development
+* **Expo** for simplified build and deployment
+* **React Navigation** for screen management
+* **AsyncStorage** for local state persistence
+* **React Native Paper** for UI components
 
 ### Backend (FastAPI)
-- FastAPI for high-performance API development
-- MongoDB for flexible data storage
-- JWT for secure authentication
-- CORS middleware for cross-origin requests
-- Groq API integration for AI-powered reports
+
+* **FastAPI** for fast, modern RESTful API development
+* **MongoDB** as the primary data store
+* **JWT** for secure user authentication
+* **CORS middleware** for cross-origin request handling
+* **Groq API** for AI-powered report generation
+
+---
 
 ## Getting Started
 
 ### Prerequisites
-- Node.js (v14 or higher)
-- Python (v3.8 or higher)
-- MongoDB
-- Expo CLI
-- npm or yarn
 
-### Installation
+* Node.js (v14+)
+* Python (v3.8+)
+* MongoDB
+* Expo CLI
+* npm or yarn
 
-1. Clone the repository:
+---
+
+### Clone the Repository
+
 ```bash
 git clone https://github.com/decipher6/medBud.git
 cd medBud
 ```
 
-2. Backend Setup:
+---
+
+### Backend Setup
+
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-3. Frontend Setup:
+---
 
-FYI frontend is medBud/
+### Frontend Setup
+
 ```bash
+cd medBud  # this is the frontend directory
 npm install
 # or
 yarn install
 ```
 
-4. Environment Configuration:
-   - Create `.env` files in both frontend(root directory) and backend directories
-   - Configure necessary environment variables (see Configuration section)
+---
 
-### Running the Application
+### Environment Configuration
 
-1. Start the Backend:
-```bash
-cd backend
-uvicorn main:app --reload
-```
+Create a `.env` file in both the **frontend** and **backend** directories with the following variables:
 
-2. Start the Frontend:
-```bash
-npx expo start
-```
+#### Backend `.env`
 
-## Configuration
-
-### Backend Environment Variables
 ```env
 MONGODB_URI=your_mongodb_uri
 DATABASE_NAME=medbud_db
@@ -105,57 +110,102 @@ PORT=8000
 GROQ_API_KEY=your_groq_api_key
 ```
 
-### Frontend Environment Variables
+#### Frontend `.env`
+
 ```env
 REACT_APP_BACKEND_URL=http://localhost:8000
 ```
 
+---
+
+## Running the Application
+
+### Start the Backend
+
+```bash
+cd backend
+uvicorn main:app --reload
+```
+
+### Start the Frontend
+
+```bash
+cd medBud
+npx expo start
+```
+
+---
+
 ## API Documentation
 
-The API documentation is available at `http://localhost:8000/docs` when running the backend server. It provides detailed information about all available endpoints, request/response formats, and authentication requirements.
+Once the backend is running, visit:
+
+```
+http://localhost:8000/docs
+```
+
+This provides interactive documentation powered by FastAPI's built-in Swagger UI.
+
+---
 
 ## Testing
 
-### Backend Tests
+### Run Backend Tests and Coverage Report
+
 ```bash
 cd backend
 pytest tests.py --cov=main --cov-report=term-missing --cov-report=html
 ```
 
-This will create a `htmlcov/` folder with a detailed HTML report
+This will generate terminal coverage output and a detailed HTML report.
 
-### To open the report:
+### View the HTML Report
 
-After the test finishes, open the report in your browser:
+Open the generated file in your browser:
 
 ```bash
-open htmlcov/index.html  # macOS
+open htmlcov/index.html      # macOS
 xdg-open htmlcov/index.html  # Linux
-start htmlcov\index.html  # Windows
+start htmlcov\index.html     # Windows
 ```
+
+---
+
 ## Contributing
 
+We welcome contributions! Here's how to get started:
+
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+2. Create a new branch:
+   `git checkout -b feature/YourFeature`
+3. Commit your changes:
+   `git commit -m "Add YourFeature"`
+4. Push to your fork:
+   `git push origin feature/YourFeature`
 5. Open a Pull Request
+
+---
 
 ## Security
 
-- JWT-based authentication
-- Secure password hashing
-- CORS protection
-- Input validation
-- Rate limiting
+* JWT-based authentication
+* Secure password hashing
+* CORS protection
+* Input validation
+* Rate limiting
+
+---
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+---
 
 ## Acknowledgments
 
-- Groq API for AI-powered report generation
-- MongoDB for database services
-- FastAPI for the backend framework
-- React Native community for the frontend framework
+* Groq API for enabling AI-powered report generation
+* MongoDB for flexible and scalable data storage
+* FastAPI for the powerful backend framework
+* React Native and Expo for modern mobile development
+
