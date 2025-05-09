@@ -99,7 +99,7 @@ yarn install
 
 ### Environment Configuration
 
-Create a `.env` file in both the **frontend** and **backend** directories with the following variables:
+Create a `.env` file in both the **root** and **backend** directories with the following variables:
 
 #### Backend `.env`
 
@@ -127,7 +127,7 @@ cd backend
 uvicorn main:app --reload
 ```
 
-### Start the Frontend
+### On a new terminal, start the Frontend
 
 ```bash
 cd medBud
