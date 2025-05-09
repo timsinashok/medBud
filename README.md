@@ -156,20 +156,10 @@ This provides interactive documentation powered by FastAPI's built-in Swagger UI
 
 ```bash
 cd backend
-pytest tests.py --cov=main --cov-report=term-missing --cov-report=html
+pytest tests.py --cov=routes --cov-report=term-missing 
 ```
 
-This will generate terminal coverage output and a detailed HTML report.
-
-### View the HTML Report
-
-Open the generated file in your browser:
-
-```bash
-open htmlcov/index.html      # macOS
-xdg-open htmlcov/index.html  # Linux
-start htmlcov\index.html     # Windows
-```
+This will generate coverage report on terminal which can be viewed and the missing statements are also outlined.
 
 ---
 
