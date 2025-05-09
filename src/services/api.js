@@ -1,4 +1,4 @@
-const BASE_URL = 'https://medbud.onrender.com';
+const BASE_URL = process.env.REACT_APP_BACKEND_URL;
 
 export const api = {
   // Symptoms
