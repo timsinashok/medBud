@@ -12,7 +12,9 @@ web-build/
 .DS_Store
 gold.sh
 code.txt
-
+/backend/venv/
+.env
+backend/.env
 env/
 
 /__pycahce__
